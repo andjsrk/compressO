@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum::{AsRefStr, EnumProperty};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompressionResult {
     pub video_id: String,
@@ -10,7 +10,7 @@ pub struct CompressionResult {
     pub file_metadata: Option<FileMetadata>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FileMetadata {
     pub path: String,
@@ -42,6 +42,7 @@ pub enum CustomEvents {
     VideoCompressionProgress,
     CancelInProgressCompression,
     BatchCompressionProgress,
+    BatchCompressionIndividualCompressionCompletion,
 }
 
 #[derive(EnumProperty)]
@@ -103,6 +104,13 @@ pub struct BatchCompressionProgress {
     pub current_index: usize,
     pub total_count: usize,
     pub video_progress: VideoCompressionProgress,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchCompressionIndividualCompressionResult {
+    pub batch_id: String,
+    pub result: CompressionResult,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

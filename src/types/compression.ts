@@ -20,6 +20,7 @@ export enum CustomEvents {
   VideoCompressionProgress = 'VideoCompressionProgress',
   CancelInProgressCompression = 'CancelInProgressCompression',
   BatchCompressionProgress = 'BatchCompressionProgress',
+  BatchCompressionIndividualCompressionCompletion = 'BatchCompressionIndividualCompressionCompletion',
 }
 
 export type VideoCompressionProgress = {
@@ -27,6 +28,10 @@ export type VideoCompressionProgress = {
   batchId: string
   fileName: string
   currentDuration: string
+}
+export type BatchCompressionIndividualCompressionResult = {
+  batchId: string
+  result: CompressionResult
 }
 
 export type VideoThumbnail = {

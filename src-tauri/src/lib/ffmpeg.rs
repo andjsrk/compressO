@@ -1,7 +1,7 @@
 use crate::domain::{
-    BatchCompressionProgress, BatchCompressionResult, CancelInProgressCompressionPayload,
-    CompressionResult, CustomEvents, TauriEvents, VideoCompressionProgress, VideoInfo,
-    VideoThumbnail, VideoWithPath,
+    BatchCompressionIndividualCompressionResult, BatchCompressionProgress, BatchCompressionResult,
+    CancelInProgressCompressionPayload, CompressionResult, CustomEvents, TauriEvents,
+    VideoCompressionProgress, VideoInfo, VideoThumbnail, VideoWithPath,
 };
 use crate::fs::get_file_metadata;
 use crossbeam_channel::{Receiver, Sender};
@@ -468,6 +468,9 @@ impl FFMPEG {
                 Err(e) => return Err(format!("Failed to create ffmpeg instance: {}", e)),
             };
 
+            let app_clone2 = self.app.clone();
+            let batch_id_clone2 = batch_id.to_string();
+
             match ffmpeg_instance
                 .compress_video(
                     video_path,
@@ -489,7 +492,22 @@ impl FFMPEG {
             {
                 Ok(result) => {
                     let video_id = result.video_id.clone();
-                    results.insert(video_id, result);
+                    results.insert(video_id, result.clone());
+
+                    tokio::spawn(async move {
+                        if let Some(window) = app_clone2.get_webview_window("main") {
+                            let individual_compression_result: BatchCompressionIndividualCompressionResult =
+                                BatchCompressionIndividualCompressionResult {
+                                    batch_id: batch_id_clone2,
+                                    result: result,
+                                };
+                            let _ = window.emit(
+                                CustomEvents::BatchCompressionIndividualCompressionCompletion
+                                    .as_ref(),
+                                individual_compression_result,
+                            );
+                        }
+                    });
                 }
                 Err(e) => {
                     if e == "CANCELLED" {

@@ -1,4 +1,3 @@
-import { event } from '@tauri-apps/api'
 import { emitTo } from '@tauri-apps/api/event'
 import { AnimatePresence, motion } from 'framer-motion'
 import React from 'react'
@@ -6,71 +5,16 @@ import { snapshot, useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
 import { toast } from '@/components/Toast'
-import { CustomEvents, VideoCompressionProgress } from '@/types/compression'
-import { convertDurationToMilliseconds } from '@/utils/string'
+import { CustomEvents } from '@/types/compression'
 import { appProxy } from '../-state'
 
 function CancelCompression() {
   const {
-    state: { isCompressing, batchId },
+    state: { isCompressing },
   } = useSnapshot(appProxy)
 
   const [confirmCancellation, setConfirmCancellation] = React.useState(false)
   const [isCancelling, setIsCancelling] = React.useState(false)
-
-  const compressionProgressRef = React.useRef<event.UnlistenFn>()
-
-  React.useEffect(() => {
-    if (batchId) {
-      ;(async function iife() {
-        if (compressionProgressRef.current) {
-          compressionProgressRef.current?.()
-        }
-        compressionProgressRef.current =
-          await event.listen<VideoCompressionProgress>(
-            CustomEvents.VideoCompressionProgress,
-            (evt) => {
-              const payload = evt?.payload
-              if (batchId === payload?.batchId) {
-                const videos = snapshot(appProxy).state.videos
-                const targetVideoIndex = videos.findIndex(
-                  (v) => v.id === payload.videoId,
-                )
-                if (targetVideoIndex !== -1) {
-                  appProxy.state.currentVideoIndex = targetVideoIndex
-                  const videoDurationMilliseconds =
-                    videos[targetVideoIndex].videoDurationMilliseconds
-                  if (!(videoDurationMilliseconds == null)) {
-                    const currentDurationInMilliseconds =
-                      convertDurationToMilliseconds(payload?.currentDuration)
-                    if (
-                      currentDurationInMilliseconds > 0 &&
-                      videoDurationMilliseconds >= currentDurationInMilliseconds
-                    ) {
-                      appProxy.state.videos[
-                        targetVideoIndex
-                      ].compressionProgress =
-                        (currentDurationInMilliseconds * 100) /
-                        videoDurationMilliseconds
-                    }
-                  }
-                }
-              }
-            },
-          )
-      })()
-    }
-
-    return () => {
-      compressionProgressRef.current?.()
-    }
-  }, [batchId])
-
-  React.useEffect(() => {
-    if (isCancelling) {
-      compressionProgressRef.current?.()
-    }
-  }, [isCancelling])
 
   const cancelOngoingCompression = async () => {
     try {

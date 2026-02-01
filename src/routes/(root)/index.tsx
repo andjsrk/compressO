@@ -18,7 +18,7 @@ import { convertDurationToMilliseconds } from '@/utils/string'
 import { Video } from '../../types/app'
 import { appProxy, videoConfigInitialState } from './-state'
 import DragAndDrop from './ui/DragAndDrop'
-import Setting from './ui/Setting'
+import Setting from './ui/settings/Setting'
 import VideoConfig from './ui/VideoConfig'
 
 export const Route = createFileRoute('/(root)/')({

@@ -15,7 +15,6 @@ import { formatBytes } from '@/utils/fs'
 import { cn } from '@/utils/tailwind'
 import { appProxy } from '../-state'
 import CancelCompression from './CancelCompression'
-import Compressing from './Compressing'
 import CompressionPreset from './compression-options/CompressionPreset'
 import CompressionQuality from './compression-options/CompressionQuality'
 import MuteAudio from './compression-options/MuteAudio'
@@ -24,12 +23,11 @@ import VideoDimensions from './compression-options/VideoDimensions'
 import VideoExtension from './compression-options/VideoExtension'
 import VideoFPS from './compression-options/VideoFPS'
 import CompressionActions from './CompressionActions'
+import CompressionProgress from './CompressionProgress'
 import PreviewBatchVideos from './PreviewBatchVideos'
 import PreviewSingleVideo from './PreviewSingleVideo'
 import SaveVideo from './SaveVideo'
 import styles from './styles.module.css'
-import Success from './Success'
-import VideoThumbnail from './VideoThumbnail'
 
 function VideoConfig() {
   const {
@@ -148,18 +146,7 @@ function VideoConfig() {
                 <CompressionActions />
               </div>
             ) : null}
-            {isCompressing ? (
-              videos.length === 1 ? (
-                <Compressing />
-              ) : (
-                <PreviewBatchVideos />
-              )
-            ) : isProcessCompleted ? (
-              <>
-                <VideoThumbnail />
-                <Success />
-              </>
-            ) : videos.length > 1 ? (
+            {videos.length > 1 ? (
               <PreviewBatchVideos />
             ) : (
               <motion.div
@@ -228,6 +215,7 @@ function VideoConfig() {
           </div>
         </section>
       </div>
+      {isCompressing ? <CompressionProgress /> : null}
     </Layout>
   )
 }
