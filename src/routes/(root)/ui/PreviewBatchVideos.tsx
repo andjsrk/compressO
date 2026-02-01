@@ -2,12 +2,15 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useMemo } from 'react'
 import { useSnapshot } from 'valtio'
 
+import Button from '@/components/Button'
 import Card from '@/components/Card'
 import Divider from '@/components/Divider'
 import Icon from '@/components/Icon'
 import Image from '@/components/Image'
 import Progress, { CircularProgress } from '@/components/Progress'
 import ScrollShadow from '@/components/ScrollShadow'
+import Tooltip from '@/components/Tooltip'
+import { showItemInFileManager } from '@/tauri/commands/fs'
 import { zoomInStaggerAnimation } from '@/utils/animation'
 import { formatBytes } from '@/utils/fs'
 import { cn } from '@/utils/tailwind'
@@ -90,6 +93,12 @@ function PreviewBatchVideos() {
     [isCompressing],
   )
 
+  const handleOpenInFileManager = useCallback(async (savedPath: string) => {
+    try {
+      await showItemInFileManager(savedPath)
+    } catch {}
+  }, [])
+
   return (
     <>
       <ScrollShadow
@@ -150,15 +159,40 @@ function PreviewBatchVideos() {
                           />
                         </div>
                       )}
+                      {video.isProcessCompleted &&
+                      video?.compressedVideo?.isSaved &&
+                      video?.compressedVideo?.savedPath ? (
+                        <div className="absolute top-2 left-2 z-10 ">
+                          <Tooltip
+                            content="Show in File Explorer"
+                            aria-label="Show in File Explorer"
+                          >
+                            <Button
+                              size="sm"
+                              isIconOnly
+                              onPress={() =>
+                                handleOpenInFileManager(
+                                  video.compressedVideo!.savedPath!,
+                                )
+                              }
+                              className="p-2 rounded-full text-white"
+                            >
+                              <Icon name="fileExplorer" size={20} />
+                            </Button>
+                          </Tooltip>
+                        </div>
+                      ) : null}
                       {!isCompressing &&
                       !isProcessCompleted &&
                       !isLoadingFiles ? (
-                        <button
-                          onClick={() => handleRemoveVideo(index)}
+                        <Button
+                          size="sm"
+                          isIconOnly
+                          onPress={() => handleRemoveVideo(index)}
                           className="absolute top-2 right-2 z-10 p-2 rounded-full bg-zinc-800/80 text-white hover:bg-zinc-700 transition-colors"
                         >
-                          <Icon name="cross" size={20} />
-                        </button>
+                          <Icon name="cross" size={18} />
+                        </Button>
                       ) : null}
                       {isCompressing && currentVideoIndex === index ? (
                         <>
