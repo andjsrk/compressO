@@ -15,12 +15,12 @@ import { getFileMetadata } from '@/tauri/commands/fs'
 import { extensions } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
 import { convertDurationToMilliseconds } from '@/utils/string'
+import { Video } from '../../types/app'
 import { appProxy, videoConfigInitialState } from './-state'
 import Setting from './ui/app-settings/Setting'
 import DragAndDrop from './ui/DragAndDrop'
 import OpenWithApp from './ui/OpenWithApp'
 import VideoConfig from './ui/VideoConfig'
-import { Video } from '../../types/app'
 
 export const Route = createFileRoute('/(root)/')({
   component: Root,
@@ -74,6 +74,7 @@ function Root() {
             size: formatBytes(fileMetadata?.size ?? 0),
             extension: fileMetadata?.extension?.toLowerCase?.(),
             config: cloneDeep(videoConfigInitialState),
+            previewMode: 'video',
           }
 
           if (fileMetadata?.extension) {

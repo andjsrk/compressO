@@ -22,5 +22,8 @@
   },
   "[svg]": {
     "editor.defaultFormatter": "jock.svg"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "biomejs.biome"
   }
 }

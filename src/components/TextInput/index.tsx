@@ -6,7 +6,16 @@ import {
 interface TextInputProps extends NextUITextInputProps {}
 
 function TextInput(props: TextInputProps) {
-  return <NextUITextInput size="sm" labelPlacement="outside" {...props} />
+  return (
+    <NextUITextInput
+      size="sm"
+      labelPlacement="outside"
+      autoComplete="off"
+      autoCapitalize="off"
+      autoCorrect="off"
+      {...props}
+    />
+  )
 }
 
 export default TextInput

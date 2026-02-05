@@ -76,6 +76,7 @@ export type Video = {
   isConfigDirty?: boolean
   dimensions?: { width: number; height: number }
   fps?: number
+  previewMode?: 'video' | 'image'
 }
 
 export type App = {
