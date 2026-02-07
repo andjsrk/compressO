@@ -138,24 +138,24 @@ function PreviewBatchVideos() {
                   layout
                   variants={zoomInStaggerAnimation.item}
                   className={cn([
-                    'relative rounded-xl border-zinc-300 dark:border-zinc-800 overflow-hidden',
+                    'relative rounded-xl border-2 overflow-hidden',
+                    currentVideoIndex > index || video.isProcessCompleted
+                      ? 'border-green-400'
+                      : 'border-primary',
                   ])}
                 >
                   <Card
                     className={cn(
-                      'border-2 bg-zinc-100 dark:bg-zinc-900',
-                      currentVideoIndex > index || video.isProcessCompleted
-                        ? 'border-green-400'
-                        : 'border-primary',
+                      'bg-zinc-100/5 dark:bg-zinc-900 rounded-none overflow-hidden',
                     )}
                     radius="lg"
                   >
-                    <div className="relative w-full">
+                    <div className="relative w-full overflow-hidden">
                       {video.thumbnailPath ? (
                         <Image
                           src={video.thumbnailPath as string}
                           alt={video.fileName ?? ''}
-                          className="w-full max-w-[unset] h-[220px] object-cover drop-shadow-xl"
+                          className="w-full max-w-[unset] h-[220px] object-cover drop-shadow-xl rounded-lg"
                           removeWrapper
                         />
                       ) : (

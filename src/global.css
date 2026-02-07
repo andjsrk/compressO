@@ -35,11 +35,6 @@
   font-family: var(--font-poppins);
 }
 
-*:focus {
-  outline-color: theme("colors.primary") !important;
-  font-family: var(--font-poppins);
-}
-
 :root {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;

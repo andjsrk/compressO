@@ -67,7 +67,7 @@ function About() {
           </button>
         </p>
       </section>
-      <p className="self-end text-gray-400 ml-2 text-lg font-bold text-center">
+      <p className="self-end text-zinc-600 dark:text-zinc-400 ml-2 text-lg font-bold text-center">
         v{window.__appVersion ?? ''}
       </p>
     </section>

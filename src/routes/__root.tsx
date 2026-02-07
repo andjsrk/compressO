@@ -2,6 +2,8 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 
 import { Toaster } from '@/components/Toast'
+import Titlebar from '@/tauri/components/Titlebar'
+import { getPlatform } from '@/utils/fs'
 import UIProvider from '../providers/UIProvider'
 
 export const Route = createRootRoute({
@@ -10,10 +12,13 @@ export const Route = createRootRoute({
 
 const isDev = import.meta.env.DEV
 
+const { isMacOS } = getPlatform()
+
 function RootComponent() {
   return (
     <>
-      <UIProvider>
+      <UIProvider className={isMacOS ? 'pt-4' : ''}>
+        {isMacOS ? <Titlebar /> : null}
         <Outlet />
       </UIProvider>
       <Toaster />

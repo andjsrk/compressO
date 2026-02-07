@@ -15,19 +15,19 @@ import React from 'react'
 import { BackdropBlurContent } from '@/ui/BackdropBlur'
 import { getPlatform } from '@/utils/fs'
 import { cn } from '@/utils/tailwind'
-import { bottomToTop, zoomIn } from './modal.animation'
+import modalAnimationVariants from './modal.animation'
 
 const { isWindows, isMacOS } = getPlatform()
 
 interface ModalProps extends NextUIModalProps {
-  motionVariant?: 'zoomIn' | 'bottomToTop'
+  motionVariant?: keyof typeof modalAnimationVariants
 }
 function Modal({ motionVariant, ...props }: ModalProps) {
   return (
     <NextUIModal
       hideCloseButton
       motionProps={{
-        variants: { zoomIn, bottomToTop }?.[motionVariant ?? 'zoomIn'],
+        variants: modalAnimationVariants?.[motionVariant ?? 'zoomIn'],
       }}
       {...props}
     />

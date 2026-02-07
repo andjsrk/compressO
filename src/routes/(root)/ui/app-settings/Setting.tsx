@@ -55,7 +55,11 @@ function Setting() {
           </DropdownMenu>
         </Dropdown>
       </div>
-      <Modal isOpen={modalDisclosure.isOpen} onClose={modalDisclosure.onClose}>
+      <Modal
+        isOpen={modalDisclosure.isOpen}
+        onClose={modalDisclosure.onClose}
+        motionVariant="bottomToTop"
+      >
         <ModalContent className="max-w-[30rem] pb-2 overflow-hidden rounded-2xl">
           {selectedKey === 'settings' ? <AppSetting /> : <About />}
         </ModalContent>

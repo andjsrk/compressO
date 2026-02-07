@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use lib::fs::{self as file_system};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_fs::FsExt;
 use tauri_plugin_log::{Target as LogTarget, TargetKind as LogTargetKind};
 
@@ -107,7 +107,7 @@ async fn main() {
             delete_file,
             delete_cache,
             show_item_in_file_manager,
-            copy_file_to_clipboard
+            copy_file_to_clipboard,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
