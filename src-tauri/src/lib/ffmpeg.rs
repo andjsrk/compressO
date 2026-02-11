@@ -1,6 +1,6 @@
 use crate::domain::{
     BatchCompressionIndividualCompressionResult, BatchCompressionProgress, BatchCompressionResult,
-    CancelInProgressCompressionPayload, CompressionResult, CustomEvents, TauriEvents,
+    CancelInProgressCompressionPayload, CompressionResult, CustomEvents, TauriEvents, TrimSegment,
     VideoCompressionConfig, VideoCompressionProgress, VideoInfo, VideoMetadataConfig,
     VideoThumbnail,
 };
@@ -69,8 +69,7 @@ impl FFMPEG {
         transforms_history: Option<&Vec<Value>>,
         metadata_config: Option<&VideoMetadataConfig>,
         custom_thumbnail_path: Option<&str>,
-        trim_start_time: Option<f64>,
-        trim_end_time: Option<f64>,
+        trim_segments: Option<&Vec<TrimSegment>>,
     ) -> Result<CompressionResult, String> {
         if !EXTENSIONS.contains(&convert_to_extension) {
             return Err(String::from("Invalid convert to extension."));
@@ -94,15 +93,6 @@ impl FFMPEG {
             .collect();
 
         let mut cmd_args: Vec<&str> = Vec::new();
-
-        // Add trim start time (seek) before input for faster processing
-        let trim_start_args: Vec<String> = match trim_start_time {
-            Some(start_time) => vec!["-ss".to_string(), start_time.to_string()],
-            _ => vec![],
-        };
-        for arg in trim_start_args.iter().map(|s| s.as_str()) {
-            cmd_args.push(arg);
-        }
 
         cmd_args.push("-i");
         cmd_args.push(video_path);
@@ -164,7 +154,9 @@ impl FFMPEG {
         } else {
             format!("{default_crf}")
         };
-        cmd_args.extend_from_slice(&["-crf", compression_quality.as_str()]);
+        if preset_name.is_some() || (0..=100).contains(&quality) {
+            cmd_args.extend_from_slice(&["-crf", compression_quality.as_str()]);
+        }
 
         // Transforms
         let transform_filters = if let Some(transforms) = transforms_history {
@@ -181,13 +173,78 @@ impl FFMPEG {
             format!("{}", padding)
         };
 
+        let (trim_video_filter, trim_audio_filter) = if let Some(segments) = trim_segments {
+            if !segments.is_empty() {
+                if segments.len() == 1 {
+                    let seg = &segments[0];
+                    let video_filter =
+                        format!("trim={}:{},setpts=PTS-STARTPTS", seg.start, seg.end);
+                    let audio_filter =
+                        format!("atrim={}:{},asetpts=PTS-STARTPTS", seg.start, seg.end);
+                    (Some(video_filter), Some(audio_filter))
+                } else {
+                    let mut video_parts = Vec::new();
+                    let mut video_labels = Vec::new();
+
+                    for (i, seg) in segments.iter().enumerate() {
+                        let label = format!("v{}", i);
+                        video_labels.push(format!("[{}]", label));
+                        video_parts.push(format!(
+                            "[0:v]trim={}:{},setpts=PTS-STARTPTS[{}]",
+                            seg.start, seg.end, label
+                        ));
+                    }
+
+                    let mut audio_parts = Vec::new();
+                    let mut audio_labels = Vec::new();
+
+                    for (i, seg) in segments.iter().enumerate() {
+                        let label = format!("a{}", i);
+                        audio_labels.push(format!("[{}]", label));
+                        audio_parts.push(format!(
+                            "[0:a]atrim={}:{},asetpts=PTS-STARTPTS[{}]",
+                            seg.start, seg.end, label
+                        ));
+                    }
+
+                    let video_filter = format!(
+                        "{}; {} concat=n={}:v=1:a=0[outv]",
+                        video_parts.join("; "),
+                        video_labels.join(""),
+                        segments.len()
+                    );
+
+                    let audio_filter = format!(
+                        "{}; {} concat=n={}:v=0:a=1[outa]",
+                        audio_parts.join("; "),
+                        audio_labels.join(""),
+                        segments.len()
+                    );
+
+                    (Some(video_filter), Some(audio_filter))
+                }
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
+
         let mut vf_filter = String::new();
 
-        if !transform_filters.is_empty() {
-            vf_filter.push_str(&transform_filters);
-            vf_filter.push_str(",")
+        // Add trim filter first if present
+        if let Some(ref trim_filter) = trim_video_filter {
+            vf_filter.push_str(trim_filter);
+            vf_filter.push_str(",");
         }
 
+        // Add transform filters
+        if !transform_filters.is_empty() {
+            vf_filter.push_str(&transform_filters);
+            vf_filter.push_str(",");
+        }
+
+        // Add pad filter
         vf_filter.push_str(&pad_filter);
 
         cmd_args.push("-filter:v:0");
@@ -199,7 +256,13 @@ impl FFMPEG {
             cmd_args.push(fps_val);
         }
 
-        // Mute Audio
+        // Build audio filter chain
+        if let Some(ref audio_filter) = trim_audio_filter {
+            cmd_args.push("-filter_complex");
+            cmd_args.push(audio_filter);
+        }
+
+        // Mute Audio (this takes precedence over audio filters)
         if should_mute_video {
             cmd_args.push("-an")
         }
@@ -236,6 +299,11 @@ impl FFMPEG {
             }
         }
 
+        // Remove the `Chapters` metadata forcefully if video has been trimmed
+        if let Some(_) = trim_video_filter {
+            metadata_args.extend_from_slice(&["-map_chapters".to_string(), "-1".to_string()]);
+        }
+
         for arg in metadata_args.iter().map(|s| s.as_str()) {
             cmd_args.push(arg);
         }
@@ -256,18 +324,6 @@ impl FFMPEG {
                     cmd_args.extend_from_slice(&["-disposition:v:1", "attached_pic"]);
                 }
             }
-        }
-
-        // Add trim end time
-        let trim_end_args: Vec<String> = match trim_end_time {
-            Some(end_time) => match trim_start_time {
-                Some(start_time) => vec!["-t".to_string(), (end_time - start_time).to_string()],
-                _ => vec!["-to".to_string(), end_time.to_string()],
-            },
-            _ => vec![],
-        };
-        for arg in trim_end_args.iter().map(|s| s.as_str()) {
-            cmd_args.push(arg);
         }
 
         // Output path
@@ -538,8 +594,7 @@ impl FFMPEG {
                 .map(|v| v.as_ref());
             let metadata_config = video_options.metadata_config.as_ref();
             let thumbnail_path = video_options.custom_thumbnail_path.as_deref();
-            let trim_start_time = video_options.trim_start_time;
-            let trim_end_time = video_options.trim_end_time;
+            let trim_segments = video_options.trim_segments.as_ref();
 
             match ffmpeg_instance
                 .compress_video(
@@ -555,8 +610,7 @@ impl FFMPEG {
                     transforms_history,
                     metadata_config,
                     thumbnail_path,
-                    trim_start_time,
-                    trim_end_time,
+                    trim_segments,
                 )
                 .await
             {

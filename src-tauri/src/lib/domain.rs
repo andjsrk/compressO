@@ -2,6 +2,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum::{AsRefStr, EnumProperty};
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TrimSegment {
+    pub start: f64,
+    pub end: f64,
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompressionResult {
@@ -149,8 +156,7 @@ pub struct VideoCompressionConfig {
     pub metadata_config: Option<VideoMetadataConfig>,
     pub custom_thumbnail_path: Option<String>,
     pub should_enable_custom_thumbnail: Option<bool>,
-    pub trim_start_time: Option<f64>,
-    pub trim_end_time: Option<f64>,
+    pub trim_segments: Option<Vec<TrimSegment>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

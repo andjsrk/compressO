@@ -1,6 +1,7 @@
 import { Divider, ScrollShadow } from '@heroui/react'
 import { Tab } from '@heroui/tabs'
 import { core } from '@tauri-apps/api'
+import { TimelineAction } from '@xzdarcy/timeline-engine'
 import { motion } from 'framer-motion'
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
@@ -11,7 +12,11 @@ import Icon from '@/components/Icon'
 import Tabs from '@/components/Tabs'
 import { compressVideos } from '@/tauri/commands/ffmpeg'
 import { VideoMetadataConfig } from '@/types/app'
-import { CompressionResult, VideoTransformsHistory } from '@/types/compression'
+import {
+  CompressionResult,
+  TrimSegment,
+  VideoTransformsHistory,
+} from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
 import CompressionPreset from './CompressionPreset'
 import CompressionQuality from './CompressionQuality'
@@ -140,14 +145,17 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
             v.config?.customThumbnailPath?.length
               ? v.config.customThumbnailPath
               : null,
-          // trimStartTime:
-          //   v.config?.shouldTrimVideo && v.config?.trimConfig
-          //     ? v.config.trimConfig.startTime
-          //     : null,
-          // trimEndTime:
-          //   v.config?.shouldTrimVideo && v.config?.trimConfig
-          //     ? v.config.trimConfig.endTime
-          //     : null,
+          trimSegments:
+            v.config?.shouldTrimVideo && Array.isArray(v.config?.trimConfig)
+              ? (v.config.trimConfig
+                  .filter((a) => a.end >= a.start)
+                  .map(
+                    (action: TimelineAction): TrimSegment => ({
+                      start: action.start,
+                      end: action.end,
+                    }),
+                  ) as TrimSegment[])
+              : null,
         })),
       )
       if (Object.keys(results).length === 0) {

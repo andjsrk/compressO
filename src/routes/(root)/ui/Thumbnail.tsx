@@ -211,7 +211,7 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                 seekPlayerTo(time, false)
                 setTime(time)
               }}
-              onChange={(data) => {
+              onEditorDataChange={(data) => {
                 if (trimConfigSetDebounceRef.current) {
                   clearTimeout(trimConfigSetDebounceRef.current)
                 }

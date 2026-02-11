@@ -180,6 +180,7 @@ export interface VideoTrimmerTimelineProps
   duration: number
   initialTrimActions?: TimelineAction[]
   onChange?: (data: TimelineRow[]) => void
+  onEditorDataChange?: (data: TimelineRow[]) => void
 }
 
 export interface VideoTrimmerTimelineRef extends TimelineState {}
@@ -192,6 +193,7 @@ const VideoTrimmerTimeline = forwardRef(
       initialTrimActions,
       style,
       onChange,
+      onEditorDataChange,
       ...props
     }: VideoTrimmerTimelineProps,
     forwardedRef: ForwardedRef<VideoTrimmerTimelineRef>,
@@ -311,6 +313,10 @@ const VideoTrimmerTimeline = forwardRef(
         window.removeEventListener('keydown', handleKeyDown)
       }
     }, [handleDeleteAction, selectedActionId])
+
+    useEffect(() => {
+      onEditorDataChange?.(editorData)
+    }, [editorData, onEditorDataChange])
 
     return (
       <div className="space-y-2">

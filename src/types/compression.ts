@@ -83,6 +83,11 @@ export type VideoFileMetadata = {
   fps?: number
 }
 
+export type TrimSegment = {
+  start: number
+  end: number
+}
+
 export type VideoCompressionConfig = {
   videoPath: string
   convertToExtension: string
@@ -96,6 +101,5 @@ export type VideoCompressionConfig = {
   transformsHistory?: VideoTransformsHistory[] | null
   metadataConfig?: VideoMetadataConfig | null
   customThumbnailPath?: string | null
-  trimStartTime?: number | null
-  trimEndTime?: number | null
+  trimSegments?: TrimSegment[] | null
 }
