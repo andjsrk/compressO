@@ -1,7 +1,7 @@
 import {
   Button as NextButton,
   type ButtonProps as NextButtonProps,
-} from '@heroui/button'
+} from '@heroui/react'
 import React from 'react'
 
 import { cn } from '@/utils/tailwind'

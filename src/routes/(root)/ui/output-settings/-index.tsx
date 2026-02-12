@@ -1,5 +1,4 @@
-import { Divider, ScrollShadow } from '@heroui/react'
-import { Tab } from '@heroui/tabs'
+import { Divider, ScrollShadow, Tab } from '@heroui/react'
 import { core } from '@tauri-apps/api'
 import { TimelineAction } from '@xzdarcy/timeline-engine'
 import { motion } from 'framer-motion'

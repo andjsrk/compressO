@@ -1,4 +1,4 @@
-import { SelectItem } from '@heroui/select'
+import { SelectItem } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
@@ -99,7 +99,7 @@ function VideoFPS({ videoIndex }: VideoFPSProps) {
               {FPS?.map((f) => (
                 <SelectItem
                   key={String(f)}
-                  value={String(f)}
+                  textValue={String(f)}
                   className="flex justify-center items-center"
                 >
                   {String(f)}

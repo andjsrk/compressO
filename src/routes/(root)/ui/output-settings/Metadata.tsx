@@ -1,4 +1,3 @@
-import { DateValue } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import cloneDeep from 'lodash/cloneDeep'
 import React, { useCallback, useRef } from 'react'
@@ -264,8 +263,8 @@ function Metadata({ videoIndex }: MetadataProps) {
                     onChange={(value) => {
                       updateMetadataField('creationTimeRaw', value as any)
                     }}
-                    defaultValue={metadataConfig?.creationTimeRaw as DateValue}
-                    value={metadataConfig?.creationTimeRaw as DateValue}
+                    defaultValue={metadataConfig?.creationTimeRaw as any}
+                    value={metadataConfig?.creationTimeRaw as any}
                     className="mt-2"
                   />
                 ) : null}

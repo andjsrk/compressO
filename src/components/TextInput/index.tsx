@@ -1,7 +1,7 @@
 import {
   Input as NextUITextInput,
   type InputProps as NextUITextInputProps,
-} from '@heroui/input'
+} from '@heroui/react'
 
 interface TextInputProps extends NextUITextInputProps {}
 

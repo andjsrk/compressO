@@ -1,3 +1,4 @@
+import { PopoverContent, PopoverTrigger } from '@heroui/react'
 import {
   Timeline,
   TimelineEditor,
@@ -18,8 +19,10 @@ import {
   useState,
 } from 'react'
 
+import Button from '../Button'
+import Icon from '../Icon'
+import Popover from '../Popover'
 import { TimelineScales } from '../Timeline/useTimelineEngine'
-import Tooltip from '../Tooltip'
 
 export const rowIds = {
   videoBoundary: 'video-boundary',
@@ -87,6 +90,7 @@ const getDefaultEditorData = ({
   return [
     {
       id: rowIds.videoBoundary,
+      rowHeight: 25,
       actions: [
         {
           id: 'action0',
@@ -134,31 +138,26 @@ export const TrimRow: FC<{
     }
   }
 
+  // <div className="flex flex-col items-center justify-center">
+  //       <p>Click to select</p>
+  //       <p>Double click to split</p>
+  //     </div>
+
   return (
-    <Tooltip
-      content={
-        <div className="flex flex-col items-center justify-center">
-          <p>Click to select</p>
-          <p>Double click to split</p>
-        </div>
-      }
-      delay={500}
+    <div
+      className={`flex justify-center items-center h-8 rounded-lg cursor-pointer group relative bg-primary`}
+      onClick={handleSplitClick}
     >
-      <div
-        className={`flex justify-center items-center h-8 rounded-lg cursor-pointer group relative bg-primary`}
-        onClick={handleSplitClick}
-      >
-        <div className="text-center text-white1">{`${(
-          action.end - action.start
-        ).toFixed(2)}s`}</div>
-        <div className="absolute inset-0 border-2 border-white/30 opacity-0 group-hover:opacity-100 rounded-lg pointer-events-none" />
-        {isSelected ? (
-          <>
-            <div className="absolute inset-0 bg-white/20 rounded-lg pointer-events-none border-2 border-black1 dark:border-white1" />
-          </>
-        ) : null}
-      </div>
-    </Tooltip>
+      <div className="text-center text-white1">{`${(
+        action.end - action.start
+      ).toFixed(2)}s`}</div>
+      <div className="absolute inset-0 border-2 border-white/30 opacity-0 group-hover:opacity-100 rounded-lg pointer-events-none" />
+      {isSelected ? (
+        <>
+          <div className="absolute inset-0 bg-white/20 rounded-lg pointer-events-none border-2 border-black1 dark:border-white1" />
+        </>
+      ) : null}
+    </div>
   )
 }
 
@@ -320,7 +319,7 @@ const VideoTrimmerTimeline = forwardRef(
     }, [editorData, onEditorDataChange])
 
     return (
-      <div className="space-y-2">
+      <div className="w-full space-y-2">
         <Timeline
           key={id}
           ref={forwardedRef}
@@ -332,7 +331,7 @@ const VideoTrimmerTimeline = forwardRef(
           startLeft={scales.startLeft}
           style={{
             width: '100%',
-            height: '125px',
+            height: '115px',
             borderRadius: '10px',
             ...(style ?? {}),
           }}
@@ -357,6 +356,17 @@ const VideoTrimmerTimeline = forwardRef(
             onChange?.(data)
           }}
         />
+        <div className="w-fit mx-auto">
+          <Popover showArrow backdrop="blur" offset={10} placement="bottom">
+            <PopoverTrigger>
+              <Button size="sm">
+                Instructions
+                <Icon name="info" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent>Hello</PopoverContent>
+          </Popover>
+        </div>
       </div>
     )
   },

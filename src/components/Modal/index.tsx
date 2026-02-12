@@ -9,7 +9,7 @@ import {
   ModalHeader as NextUIModalHeader,
   type ModalHeaderProps as NextUIModalHeaderProps,
   type ModalProps as NextUIModalProps,
-} from '@heroui/modal'
+} from '@heroui/react'
 import React from 'react'
 
 import { BackdropBlurContent } from '@/ui/BackdropBlur'

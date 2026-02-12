@@ -1,7 +1,7 @@
 import {
   Image as NextUIImage,
   type ImageProps as NextUIImageProps,
-} from '@heroui/image'
+} from '@heroui/react'
 import React from 'react'
 
 interface ImageProps {

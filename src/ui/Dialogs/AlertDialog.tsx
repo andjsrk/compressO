@@ -1,5 +1,4 @@
-import { ButtonProps } from '@heroui/button'
-import { UseDisclosureProps } from '@heroui/modal'
+import { ButtonProps, UseDisclosureProps } from '@heroui/react'
 import React from 'react'
 
 import Button from '@/components/Button'

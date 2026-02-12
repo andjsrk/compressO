@@ -65,10 +65,7 @@ function PreviewSingleVideo({ videoIndex }: PreviewSingleVideoProps) {
     >
       {!(isVideoTransformEditMode || isVideoTrimEditMode) &&
       !isProcessCompleted ? (
-        <Code
-          size="sm"
-          className="mb-3 text-center rounded-xl px-4 text-xs xl:text-sm"
-        >
+        <Code size="sm" className="mb-3 text-center rounded-xl px-4 text-xs">
           {singleFileNameDisplay?.length > 50
             ? `${singleFileNameDisplay?.slice(0, 20)}...${singleFileNameDisplay?.slice(
                 -10,

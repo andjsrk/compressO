@@ -1,7 +1,7 @@
 import {
   Checkbox as NextUICheckbox,
   type CheckboxProps as NextUICheckboxProps,
-} from '@heroui/checkbox'
+} from '@heroui/react'
 
 interface CheckboxProps extends NextUICheckboxProps {}
 

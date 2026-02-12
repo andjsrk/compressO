@@ -3,7 +3,7 @@ import {
   type TabItemProps as NextUITabProps,
   Tabs as NextUITabs,
   type TabsProps as NextUITabsProps,
-} from '@heroui/tabs'
+} from '@heroui/react'
 
 interface TabsProps extends NextUITabsProps {}
 

@@ -1,4 +1,4 @@
-import { SelectItem } from '@heroui/select'
+import { SelectItem } from '@heroui/react'
 import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
@@ -69,7 +69,7 @@ function VideoExtension({ videoIndex }: VideoExtensionProps) {
       {videoExtensions?.map((ext) => (
         <SelectItem
           key={ext}
-          value={ext}
+          textValue={ext}
           className="flex justify-center items-center"
         >
           {ext}

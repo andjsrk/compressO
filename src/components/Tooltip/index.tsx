@@ -1,7 +1,7 @@
 import {
   Tooltip as NextUITooltip,
   type TooltipProps as NextUITooltipProps,
-} from '@heroui/tooltip'
+} from '@heroui/react'
 
 import { blurCSS, getBlurPseudoCSS } from '@/ui/BackdropBlur'
 import { getPlatform } from '@/utils/fs'

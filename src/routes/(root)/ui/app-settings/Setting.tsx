@@ -1,5 +1,4 @@
-import { DropdownItem } from '@heroui/dropdown'
-import { useDisclosure } from '@heroui/modal'
+import { DropdownItem, useDisclosure } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import React from 'react'
 

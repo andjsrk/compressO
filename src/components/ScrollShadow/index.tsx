@@ -1,7 +1,7 @@
 import {
   ScrollShadow as NextUIScrollShadow,
   type ScrollShadowProps as NextUIScrollShadowProps,
-} from '@heroui/scroll-shadow'
+} from '@heroui/react'
 
 interface ScrollShadowProps extends NextUIScrollShadowProps {}
 

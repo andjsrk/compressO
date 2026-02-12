@@ -1,11 +1,11 @@
 import {
+  HTMLHeroUIProps,
   Card as NextUICard,
   CardBody as NextUICardBody,
   CardFooter as NextUICardFooter,
   type CardFooterProps as NextUICardFooterProps,
   type CardProps as NextUICardProps,
-} from '@heroui/card'
-import { HTMLHeroUIProps } from '@heroui/react'
+} from '@heroui/react'
 
 interface CardProps extends NextUICardProps {}
 

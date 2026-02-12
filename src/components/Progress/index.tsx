@@ -3,7 +3,7 @@ import {
   type CircularProgressProps as NextUICircularProgressProps,
   Progress as NextUIProgress,
   type ProgressProps as NextUIProgressProps,
-} from '@heroui/progress'
+} from '@heroui/react'
 
 interface CircularProgressProps extends NextUICircularProgressProps {}
 

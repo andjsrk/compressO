@@ -1,7 +1,7 @@
 import {
   Switch as NextUISwitch,
   type SwitchProps as NextUISwitchProps,
-} from '@heroui/switch'
+} from '@heroui/react'
 
 interface SwitchProps extends NextUISwitchProps {}
 

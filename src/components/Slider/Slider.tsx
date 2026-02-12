@@ -1,7 +1,7 @@
 import {
   Slider as NextUISlider,
   type SliderProps as NextUISliderProps,
-} from '@heroui/slider'
+} from '@heroui/react'
 
 interface SliderProps extends NextUISliderProps {}
 

@@ -1,4 +1,4 @@
-import { SelectItem } from '@heroui/select'
+import { SelectItem } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
@@ -108,7 +108,7 @@ function CompressionPreset({ videoIndex }: CompressionPresetProps) {
                   // Right now if we use SelectItem it breaks the code so opting for SelectItem from NextUI directly
                   <SelectItem
                     key={preset}
-                    value={preset}
+                    textValue={preset}
                     className="flex justify-center items-center"
                     endContent={
                       preset === compressionPresets.ironclad ? (

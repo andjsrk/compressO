@@ -3,7 +3,7 @@ import {
   SelectItem as NextUISelectItem,
   type SelectItemProps as NextUISelectItemProps,
   type SelectProps as NextUISelectProps,
-} from '@heroui/select'
+} from '@heroui/react'
 
 import { blurCSS } from '@/ui/BackdropBlur'
 import { getPlatform } from '@/utils/fs'

@@ -7,7 +7,7 @@ import {
   type DropdownProps as NextUIDropdownProps,
   DropdownTrigger as NextUIDropdownTrigger,
   type DropdownTriggerProps as NextUIDropdownTriggerProps,
-} from '@heroui/dropdown'
+} from '@heroui/react'
 
 import { blurCSS } from '@/ui/BackdropBlur'
 import { getPlatform } from '@/utils/fs'

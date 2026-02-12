@@ -1,4 +1,4 @@
-import { Link as NextLink, LinkProps as NextLinkProps } from '@heroui/link'
+import { Link as NextLink, LinkProps as NextLinkProps } from '@heroui/react'
 
 interface LinkProps {}
 
