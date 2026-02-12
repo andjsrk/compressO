@@ -169,8 +169,8 @@ function VideoTransformer({ videoIndex }: VideoTransformerProps) {
           grid: true,
         }}
         onChange={onChange}
-        className="!w-full !h-full"
-        boundaryClassName="!max-w-full !max-h-full !w-full !h-full object-contain"
+        className="w-full h-full"
+        boundaryClassName="max-w-full max-h-full w-full h-full object-contain"
         defaultCoordinates={(state: CropperState) => {
           const crop =
             appProxy.state.videos[videoIndex].config.transformVideoConfig

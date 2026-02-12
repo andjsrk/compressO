@@ -87,37 +87,36 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
         appProxy.state.videos[videoIndex].config,
         'isVideoTransformEditMode',
         async () => {
-          if (playerRef.current) {
-            if (
-              appProxy.state.videos[videoIndex].config.isVideoTransformEditMode
-            ) {
-              const videoSnapshot = appProxy.state.videos[videoIndex]
-              const originalThumbnail = core.convertFileSrc(
-                videoSnapshot.thumbnailPathRaw!,
-              )
+          if (
+            playerRef.current &&
+            appProxy.state.videos[videoIndex].config.isVideoTransformEditMode
+          ) {
+            const videoSnapshot = appProxy.state.videos[videoIndex]
+            const originalThumbnail = core.convertFileSrc(
+              videoSnapshot.thumbnailPathRaw!,
+            )
 
-              playerRef.current.pauseVideo()
+            playerRef.current.pauseVideo()
 
-              // Wait a bit for the pause to take effect and frame to stabilize
-              await new Promise((resolve) => setTimeout(resolve, 100))
+            // Wait a bit for the pause to take effect and frame to stabilize
+            await new Promise((resolve) => setTimeout(resolve, 100))
 
-              let url: string | null = null
-              let attempts = 0
-              const maxAttempts = 3
+            let url: string | null = null
+            let attempts = 0
+            const maxAttempts = 3
 
-              while (!url && attempts < maxAttempts) {
-                url = await playerRef.current.captureVideoFrame()
-                if (!url) {
-                  attempts++
-                  if (attempts < maxAttempts) {
-                    await new Promise((resolve) => setTimeout(resolve, 100))
-                  }
+            while (!url && attempts < maxAttempts) {
+              url = await playerRef.current.captureVideoFrame()
+              if (!url) {
+                attempts++
+                if (attempts < maxAttempts) {
+                  await new Promise((resolve) => setTimeout(resolve, 100))
                 }
               }
-
-              appProxy.state.videos[videoIndex].thumbnailPath =
-                url ?? originalThumbnail
             }
+
+            appProxy.state.videos[videoIndex].thumbnailPath =
+              url ?? originalThumbnail
           }
         },
       )
