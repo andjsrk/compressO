@@ -332,6 +332,10 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                   }
                 }, 250)
               }}
+              onActionMoving={({ end }) => {
+                seekPlayerTo(end, false)
+                setTimelineTime(end)
+              }}
             />
           </div>
         ) : null}

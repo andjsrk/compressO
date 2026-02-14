@@ -56,62 +56,76 @@ const TABS = {
 } as const
 
 function VideoInfo({ videoIndex }: VideoInfoProps) {
+  if (videoIndex < 0) return null
+
   const {
     state: { videos },
   } = useSnapshot(appProxy)
 
   const video = videos.length && videoIndex >= 0 ? videos[videoIndex] : null
+  const { pathRaw: videoPathRaw, videoInfoRaw } = video ?? {}
   if (!video) return null
 
   const [tab, setTab] = useState<keyof typeof TABS>('container')
   const [loading, setLoading] = useState(false)
-  const [containerInfo, setContainerInfo] = useState<ContainerInfo | null>(null)
-  const [videoStreams, setVideoStreams] = useState<VideoStream[] | null>(null)
-  const [audioStreams, setAudioStreams] = useState<AudioStream[] | null>(null)
-  const [subtitleStreams, setSubtitleStreams] = useState<
-    SubtitleStream[] | null
-  >(null)
-  const [chapters, setChapters] = useState<Chapter[] | null>(null)
 
   const fetchTabData = useCallback(
     async (tabKey: keyof typeof TABS) => {
-      if (!video?.pathRaw) return
+      const video = appProxy.state.videos[videoIndex]
+
+      if (!videoPathRaw || !video) {
+        return
+      }
+
+      if (!video.videoInfoRaw) {
+        video.videoInfoRaw = {}
+      }
 
       setLoading(true)
       try {
         switch (tabKey) {
           case 'container': {
-            if (!containerInfo) {
-              const data = await getContainerInfo(video.pathRaw)
-              setContainerInfo(data)
+            if (!video?.videoInfoRaw?.containerInfo) {
+              const data = await getContainerInfo(videoPathRaw)
+              if (data) {
+                video.videoInfoRaw.containerInfo = data
+              }
             }
             break
           }
           case 'video': {
-            if (!videoStreams) {
-              const data = await getVideoStreams(video.pathRaw)
-              setVideoStreams(data)
+            if (!video?.videoInfoRaw?.videoStreams) {
+              const data = await getVideoStreams(videoPathRaw)
+              if (data) {
+                video.videoInfoRaw.videoStreams = data
+              }
             }
             break
           }
           case 'audio': {
-            if (!audioStreams) {
-              const data = await getAudioStreams(video.pathRaw)
-              setAudioStreams(data)
+            if (!video?.videoInfoRaw?.audioStreams) {
+              const data = await getAudioStreams(videoPathRaw)
+              if (data) {
+                video.videoInfoRaw.audioStreams = data
+              }
             }
             break
           }
           case 'subtitles': {
-            if (!subtitleStreams) {
-              const data = await getSubtitleStreams(video.pathRaw)
-              setSubtitleStreams(data)
+            if (!video?.videoInfoRaw?.subtitleStreams) {
+              const data = await getSubtitleStreams(videoPathRaw)
+              if (data) {
+                video.videoInfoRaw.subtitleStreams = data
+              }
             }
             break
           }
           case 'chapters': {
-            if (!chapters) {
-              const data = await getChapters(video.pathRaw)
-              setChapters(data)
+            if (!video?.videoInfoRaw?.chapters) {
+              const data = await getChapters(videoPathRaw)
+              if (data) {
+                video.videoInfoRaw.chapters = data
+              }
             }
             break
           }
@@ -122,14 +136,7 @@ function VideoInfo({ videoIndex }: VideoInfoProps) {
         setLoading(false)
       }
     },
-    [
-      video?.pathRaw,
-      containerInfo,
-      videoStreams,
-      audioStreams,
-      subtitleStreams,
-      chapters,
-    ],
+    [videoPathRaw, videoIndex],
   )
 
   useEffect(() => {
@@ -161,24 +168,26 @@ function VideoInfo({ videoIndex }: VideoInfoProps) {
           </div>
         ) : null}
 
-        {!loading && tab === 'container' && containerInfo ? (
-          <ContainerInfoDisplay info={containerInfo} />
+        {!loading && tab === 'container' && videoInfoRaw?.containerInfo ? (
+          <ContainerInfoDisplay info={videoInfoRaw?.containerInfo as any} />
         ) : null}
 
-        {!loading && tab === 'video' && videoStreams ? (
-          <VideoStreamsDisplay streams={videoStreams} />
+        {!loading && tab === 'video' && videoInfoRaw?.videoStreams ? (
+          <VideoStreamsDisplay streams={videoInfoRaw?.videoStreams as any} />
         ) : null}
 
-        {!loading && tab === 'audio' && audioStreams ? (
-          <AudioStreamsDisplay streams={audioStreams} />
+        {!loading && tab === 'audio' && videoInfoRaw?.audioStreams ? (
+          <AudioStreamsDisplay streams={videoInfoRaw?.audioStreams as any} />
         ) : null}
 
-        {!loading && tab === 'chapters' && chapters ? (
-          <ChaptersDisplay chapters={chapters} />
+        {!loading && tab === 'chapters' && videoInfoRaw?.chapters ? (
+          <ChaptersDisplay chapters={videoInfoRaw?.chapters as any} />
         ) : null}
 
-        {!loading && tab === 'subtitles' && subtitleStreams ? (
-          <SubtitleStreamsDisplay streams={subtitleStreams} />
+        {!loading && tab === 'subtitles' && videoInfoRaw?.subtitleStreams ? (
+          <SubtitleStreamsDisplay
+            streams={videoInfoRaw?.subtitleStreams as any}
+          />
         ) : null}
       </ScrollShadow>
     </section>
@@ -283,7 +292,7 @@ function VideoStreamsDisplay({ streams }: { streams: VideoStream[] }) {
           transition={{ delay: index * 0.05 }}
           className="space-y-4"
         >
-          <h3 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">
+          <h3 className="text-lg font-semibold text-primary">
             Video Stream {streams.length > 1 ? `${index + 1}` : ''}
           </h3>
 
@@ -475,7 +484,7 @@ function AudioStreamsDisplay({ streams }: { streams: AudioStream[] }) {
           transition={{ delay: index * 0.05 }}
           className="space-y-4"
         >
-          <h3 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">
+          <h3 className="text-lg font-semibold text-primary">
             Audio Stream {streams.length > 1 ? `${index + 1}` : ''}
           </h3>
 
@@ -531,7 +540,10 @@ function AudioStreamsDisplay({ streams }: { streams: AudioStream[] }) {
 
           {stream.bitRate ? (
             <>
-              <InfoItem label="Bitrate" value={stream.bitRate} />
+              <InfoItem
+                label="Bitrate"
+                value={`${formatBytes(+stream.bitRate).toLowerCase?.() ?? '-'}ps (${stream.bitRate})`}
+              />
               <Divider className="my-3" />
             </>
           ) : null}
@@ -619,36 +631,36 @@ function SubtitleStreamsDisplay({ streams }: { streams: SubtitleStream[] }) {
           stream.disposition.karaoke ||
           stream.disposition.lyrics ? (
             <div>
-              <InfoItem label="Disposition" value="" />
+              <InfoItem label="Disposition" value=" " />
               <div className="mt-2 space-y-1 ml-4">
                 {stream.disposition.default ? (
-                  <div className="text-zinc-600 dark:text-zinc-400">
-                    ✓ Default
+                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                    - Default
                   </div>
                 ) : null}
                 {stream.disposition.forced ? (
-                  <div className="text-zinc-600 dark:text-zinc-400">
-                    ✓ Forced
+                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                    - Forced
                   </div>
                 ) : null}
                 {stream.disposition.attached_pic ? (
-                  <div className="text-zinc-600 dark:text-zinc-400">
-                    ✓ Attached Picture
+                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                    - Attached Picture
                   </div>
                 ) : null}
                 {stream.disposition.comment ? (
-                  <div className="text-zinc-600 dark:text-zinc-400">
-                    ✓ Comment
+                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                    - Comment
                   </div>
                 ) : null}
                 {stream.disposition.karaoke ? (
-                  <div className="text-zinc-600 dark:text-zinc-400">
-                    ✓ Karaoke
+                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                    - Karaoke
                   </div>
                 ) : null}
                 {stream.disposition.lyrics ? (
-                  <div className="text-zinc-600 dark:text-zinc-400">
-                    ✓ Lyrics
+                  <div className="text-zinc-600 dark:text-zinc-400 text-xs">
+                    - Lyrics
                   </div>
                 ) : null}
               </div>
@@ -675,8 +687,8 @@ function ChaptersDisplay({ chapters }: { chapters: Chapter[] }) {
           transition={{ delay: index * 0.05 }}
         >
           <div className="flex items-start justify-between">
-            <h3 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">
-              Chapter {index + 1} {chapter.id ? `(ID: ${chapter.id})` : ''}
+            <h3 className="text-lg font-semibold text-primary">
+              Chapter {index + 1} {chapter.id ? `(#${chapter.id})` : ''}
             </h3>
             {chapter.title && (
               <span className="text-sm text-zinc-600 dark:text-zinc-400 ml-4">

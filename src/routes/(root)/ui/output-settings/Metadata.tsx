@@ -1,13 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import cloneDeep from 'lodash/cloneDeep'
-import React, { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Card from '@/components/Card'
 import DatePicker from '@/components/DatePicker'
 import Divider from '@/components/Divider'
 import Switch from '@/components/Switch'
+import TextArea from '@/components/TextArea'
 import TextInput from '@/components/TextInput'
+import { getContainerInfo } from '@/tauri/commands/ffprobe'
 import type { VideoMetadataConfig } from '@/types/app'
 import { slideDownTransition } from '@/utils/animation'
 import {
@@ -18,6 +20,45 @@ import {
 
 type MetadataProps = {
   videoIndex: number
+}
+
+/**
+ * Helper function to extract metadata from container tags
+ * Maps common tag names to VideoMetadataConfig fields
+ */
+function extractMetadataFromTags(
+  tags: ReadonlyArray<readonly [string, string]> | null,
+): Partial<VideoMetadataConfig> | null {
+  if (!tags) return null
+
+  const tagMap = new Map(tags)
+  const metadata: Partial<VideoMetadataConfig> = {}
+
+  const mappings: Record<keyof VideoMetadataConfig, string[]> = {
+    title: ['title'],
+    artist: ['artist', 'album_artist'],
+    album: ['album'],
+    year: ['date', 'year'],
+    comment: ['comment'],
+    description: ['description'],
+    synopsis: ['synopsis'],
+    genre: ['genre'],
+    creationTime: ['creation_time'],
+    creationTimeRaw: [],
+    shouldEnableCreationTime: [],
+  }
+
+  for (const [field, tagNames] of Object.entries(mappings)) {
+    for (const tagName of tagNames) {
+      const value = tagMap.get(tagName)
+      if (value) {
+        ;(metadata[field as keyof VideoMetadataConfig] as any) = value
+        break
+      }
+    }
+  }
+
+  return metadata
 }
 
 function Metadata({ videoIndex }: MetadataProps) {
@@ -31,27 +72,33 @@ function Metadata({ videoIndex }: MetadataProps) {
     },
   } = useSnapshot(appProxy)
   const video = videos.length > 0 && videoIndex >= 0 ? videos[videoIndex] : null
-  const { config } = video ?? {}
+  const { config, pathRaw: videoPathRaw } = video ?? {}
   const { shouldPreserveMetadata, metadataConfig } =
     config ?? commonConfigForBatchCompression ?? {}
 
   const debounceRef = useRef<NodeJS.Timeout>()
-  const metadataRef = useRef<VideoMetadataConfig | null | undefined>(
-    metadataConfig as any,
-  )
-
-  React.useEffect(() => {
-    ;(metadataRef.current as any) = metadataConfig
-  }, [metadataConfig])
 
   const updateMetadataField = useCallback(
-    (field: keyof VideoMetadataConfig, value: string | null | undefined) => {
-      if (debounceRef.current) {
+    (
+      field: keyof VideoMetadataConfig,
+      value: string | null | undefined,
+      skipDebounce = false,
+    ) => {
+      if (!skipDebounce && debounceRef.current) {
         clearTimeout(debounceRef.current)
       }
-      debounceRef.current = setTimeout(() => {
+      if (!skipDebounce) {
+        debounceRef.current = setTimeout(handleUpdateMetadataField, 300)
+      } else {
+        handleUpdateMetadataField()
+      }
+
+      function handleUpdateMetadataField() {
         if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
-          if (!appProxy.state.videos[videoIndex]?.config?.metadataConfig) {
+          if (
+            appProxy.state.videos[videoIndex]?.config &&
+            !appProxy.state.videos[videoIndex]?.config?.metadataConfig
+          ) {
             appProxy.state.videos[videoIndex].config.metadataConfig = cloneDeep(
               videoMetadataConfigInitialState,
             )
@@ -85,7 +132,7 @@ function Metadata({ videoIndex }: MetadataProps) {
             normalizeBatchVideosConfig()
           }
         }
-      }, 300)
+      }
     },
     [videoIndex],
   )
@@ -98,10 +145,6 @@ function Metadata({ videoIndex }: MetadataProps) {
 
       if (appProxy.state.videos[videoIndex].config.shouldPreserveMetadata) {
         appProxy.state.videos[videoIndex].config.metadataConfig = null
-      } else {
-        appProxy.state.videos[videoIndex].config.metadataConfig = cloneDeep(
-          videoMetadataConfigInitialState,
-        )
       }
     } else {
       if (appProxy.state.videos.length > 1) {
@@ -119,6 +162,43 @@ function Metadata({ videoIndex }: MetadataProps) {
 
         normalizeBatchVideosConfig()
       }
+    }
+  }, [videoIndex])
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <shouldPreserveMetadata>
+  useEffect(() => {
+    videoIndex > -1 &&
+      (async () => {
+        const targetVideo = appProxy.state.videos[videoIndex]
+        if (targetVideo && !targetVideo?.videoInfoRaw?.containerInfo) {
+          if (!targetVideo.videoInfoRaw) {
+            targetVideo.videoInfoRaw = {}
+          }
+          const data = await getContainerInfo(videoPathRaw!)
+          if (data) {
+            targetVideo.videoInfoRaw.containerInfo = data
+            const extractedMetadata = extractMetadataFromTags(data.tags)
+            if (extractedMetadata) {
+              for (const [k, v] of Object.entries(extractedMetadata)) {
+                updateMetadataField(k as any, v as any, true)
+              }
+            }
+          }
+        }
+      })()
+  }, [videoIndex, videoPathRaw, shouldPreserveMetadata])
+
+  useEffect(() => {
+    // Restart the toggle to set the initial values in the forms
+    if (
+      videoIndex > -1 &&
+      appProxy.state.videos[videoIndex]?.config &&
+      !appProxy.state.videos[videoIndex].config.shouldPreserveMetadata
+    ) {
+      appProxy.state.videos[videoIndex].config.shouldPreserveMetadata = true
+      setTimeout(() => {
+        appProxy.state.videos[videoIndex].config.shouldPreserveMetadata = false
+      }, 100)
     }
   }, [videoIndex])
 
@@ -160,7 +240,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   onValueChange={(value) => updateMetadataField('title', value)}
                   classNames={{ mainWrapper: 'my-3' }}
                 />
-                <Divider className="mb-6" />
+                <Divider className="mb-3" />
               </div>
               <div>
                 <TextInput
@@ -174,7 +254,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   }
                   classNames={{ mainWrapper: 'my-3' }}
                 />
-                <Divider className="mb-6" />
+                <Divider className="mb-3" />
               </div>
               <div>
                 <TextInput
@@ -186,61 +266,7 @@ function Metadata({ videoIndex }: MetadataProps) {
                   onValueChange={(value) => updateMetadataField('album', value)}
                   classNames={{ mainWrapper: 'my-3' }}
                 />
-                <Divider className="mb-6" />
-              </div>
-              <div>
-                <TextInput
-                  type="text"
-                  label="Year/Date"
-                  placeholder="Enter year or date"
-                  defaultValue={metadataConfig?.year ?? ''}
-                  isDisabled={shouldDisableInput}
-                  classNames={{ mainWrapper: 'my-3' }}
-                  onValueChange={(value) => updateMetadataField('year', value)}
-                />
-                <Divider className="mb-6" />
-              </div>
-              <div>
-                <TextInput
-                  type="text"
-                  label="Description"
-                  placeholder="Enter description"
-                  defaultValue={metadataConfig?.description ?? ''}
-                  isDisabled={shouldDisableInput}
-                  classNames={{ mainWrapper: 'my-3' }}
-                  onValueChange={(value) =>
-                    updateMetadataField('description', value)
-                  }
-                />
-                <Divider className="mb-6" />
-              </div>
-              <div>
-                <TextInput
-                  type="text"
-                  label="Synopsis"
-                  placeholder="Enter synopsis"
-                  defaultValue={metadataConfig?.synopsis ?? ''}
-                  isDisabled={shouldDisableInput}
-                  classNames={{ mainWrapper: 'my-3' }}
-                  onValueChange={(value) =>
-                    updateMetadataField('synopsis', value)
-                  }
-                />
-                <Divider className="mb-6" />
-              </div>
-              <div>
-                <TextInput
-                  type="text"
-                  label="Comment"
-                  placeholder="Enter comment"
-                  defaultValue={metadataConfig?.comment ?? ''}
-                  isDisabled={shouldDisableInput}
-                  classNames={{ mainWrapper: 'my-3' }}
-                  onValueChange={(value) =>
-                    updateMetadataField('comment', value)
-                  }
-                />
-                <Divider className="mb-6" />
+                <Divider className="mb-3" />
               </div>
               <div>
                 <TextInput
@@ -252,7 +278,19 @@ function Metadata({ videoIndex }: MetadataProps) {
                   classNames={{ mainWrapper: 'my-3' }}
                   onValueChange={(value) => updateMetadataField('genre', value)}
                 />
-                <Divider className="mb-6" />
+                <Divider className="mb-2" />
+              </div>
+              <div>
+                <TextInput
+                  type="text"
+                  label="Year/Date"
+                  placeholder="Enter year or date"
+                  defaultValue={metadataConfig?.year ?? ''}
+                  isDisabled={shouldDisableInput}
+                  classNames={{ mainWrapper: 'my-3' }}
+                  onValueChange={(value) => updateMetadataField('year', value)}
+                />
+                <Divider className="mb-2" />
               </div>
               <div>
                 <div className="flex items-center mt-[-10px]">
@@ -296,6 +334,48 @@ function Metadata({ videoIndex }: MetadataProps) {
                     className="mt-2"
                   />
                 ) : null}
+                <Divider className="my-3" />
+              </div>
+              <div>
+                <TextArea
+                  type="text"
+                  label="Description"
+                  placeholder="Enter description"
+                  defaultValue={metadataConfig?.description ?? ''}
+                  isDisabled={shouldDisableInput}
+                  classNames={{ mainWrapper: 'my-3' }}
+                  onValueChange={(value) =>
+                    updateMetadataField('description', value)
+                  }
+                />
+                <Divider className="my-3" />
+              </div>
+              <div>
+                <TextArea
+                  type="text"
+                  label="Synopsis"
+                  placeholder="Enter synopsis"
+                  defaultValue={metadataConfig?.synopsis ?? ''}
+                  isDisabled={shouldDisableInput}
+                  classNames={{ mainWrapper: 'my-3' }}
+                  onValueChange={(value) =>
+                    updateMetadataField('synopsis', value)
+                  }
+                />
+                <Divider className="my-3" />
+              </div>
+              <div>
+                <TextArea
+                  type="text"
+                  label="Comment"
+                  placeholder="Enter comment"
+                  defaultValue={metadataConfig?.comment ?? ''}
+                  isDisabled={shouldDisableInput}
+                  classNames={{ mainWrapper: 'my-3' }}
+                  onValueChange={(value) =>
+                    updateMetadataField('comment', value)
+                  }
+                />
               </div>
             </motion.div>
           </Card>

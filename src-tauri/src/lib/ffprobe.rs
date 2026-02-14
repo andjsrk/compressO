@@ -1,6 +1,6 @@
 use crate::domain::{
-    Chapter, ContainerInfo, Disposition, SubtitleStream, TauriEvents, VideoInfo,
-    VideoStream, AudioStream,
+    AudioStream, Chapter, ContainerInfo, Disposition, SubtitleStream, TauriEvents, VideoInfo,
+    VideoStream,
 };
 use serde_json::Value;
 use shared_child::SharedChild;
@@ -237,7 +237,9 @@ impl FFPROBE {
                         }
 
                         if let Ok(json) = serde_json::from_str::<Value>(&json_str) {
-                            if let Some(streams_array) = json.get("streams").and_then(|s| s.as_array()) {
+                            if let Some(streams_array) =
+                                json.get("streams").and_then(|s| s.as_array())
+                            {
                                 let mut result = Vec::new();
                                 for stream in streams_array {
                                     // Basic codec info
@@ -266,25 +268,25 @@ impl FFPROBE {
                                         .to_string();
 
                                     // Dimensions
-                                    let width = stream
-                                        .get("width")
-                                        .and_then(|w| w.as_u64())
-                                        .unwrap_or(0) as u32;
+                                    let width =
+                                        stream.get("width").and_then(|w| w.as_u64()).unwrap_or(0)
+                                            as u32;
 
-                                    let height = stream
-                                        .get("height")
-                                        .and_then(|h| h.as_u64())
-                                        .unwrap_or(0) as u32;
+                                    let height =
+                                        stream.get("height").and_then(|h| h.as_u64()).unwrap_or(0)
+                                            as u32;
 
                                     let coded_width = stream
                                         .get("coded_width")
                                         .and_then(|w| w.as_u64())
-                                        .unwrap_or(0) as u32;
+                                        .unwrap_or(0)
+                                        as u32;
 
                                     let coded_height = stream
                                         .get("coded_height")
                                         .and_then(|h| h.as_u64())
-                                        .unwrap_or(0) as u32;
+                                        .unwrap_or(0)
+                                        as u32;
 
                                     // Frame rate
                                     let r_frame_rate = stream
@@ -571,16 +573,19 @@ impl FFPROBE {
                                 };
 
                                 if cp_clone1.wait().is_ok() {
-                                    (0, Some(ContainerInfo {
-                                        filename,
-                                        format_name,
-                                        format_long_name,
-                                        duration,
-                                        size,
-                                        bit_rate,
-                                        nb_streams,
-                                        tags,
-                                    }))
+                                    (
+                                        0,
+                                        Some(ContainerInfo {
+                                            filename,
+                                            format_name,
+                                            format_long_name,
+                                            duration,
+                                            size,
+                                            bit_rate,
+                                            nb_streams,
+                                            tags,
+                                        }),
+                                    )
                                 } else {
                                     (1, None)
                                 }
@@ -676,7 +681,9 @@ impl FFPROBE {
                         }
 
                         if let Ok(json) = serde_json::from_str::<Value>(&json_str) {
-                            if let Some(streams_array) = json.get("streams").and_then(|s| s.as_array()) {
+                            if let Some(streams_array) =
+                                json.get("streams").and_then(|s| s.as_array())
+                            {
                                 let mut result = Vec::new();
                                 for stream in streams_array {
                                     // Basic codec info
@@ -706,8 +713,8 @@ impl FFPROBE {
                                     // Channels and layout
                                     let channels = stream
                                         .get("channels")
-                                        .and_then(|c| c.as_str())
-                                        .unwrap_or("0")
+                                        .and_then(|c| c.as_u64())
+                                        .unwrap_or(0)
                                         .to_string();
 
                                     let channel_layout = stream
@@ -750,7 +757,8 @@ impl FFPROBE {
                                             let mut tags_vec = Vec::new();
                                             for (key, value) in tags_map.iter() {
                                                 if let Some(val_str) = value.as_str() {
-                                                    tags_vec.push((key.clone(), val_str.to_string()));
+                                                    tags_vec
+                                                        .push((key.clone(), val_str.to_string()));
                                                 }
                                             }
                                             Some(tags_vec)
@@ -821,15 +829,21 @@ impl FFPROBE {
     }
 
     /// Get all subtitle streams from the media
-    pub async fn get_subtitle_streams(&mut self, path: &str) -> Result<Vec<SubtitleStream>, String> {
+    pub async fn get_subtitle_streams(
+        &mut self,
+        path: &str,
+    ) -> Result<Vec<SubtitleStream>, String> {
         let command = self
             .ffprobe
             .args([
-                "-v", "error",
-                "-select_streams", "s",
+                "-v",
+                "error",
+                "-select_streams",
+                "s",
                 "-show_entries",
                 "stream=codec_name,codec_long_name,codec_type:stream_tags:stream_disposition",
-                "-of", "json",
+                "-of",
+                "json",
                 path,
             ])
             .stdout(Stdio::piped())
@@ -871,7 +885,9 @@ impl FFPROBE {
                         }
 
                         if let Ok(json) = serde_json::from_str::<Value>(&json_str) {
-                            if let Some(streams_array) = json.get("streams").and_then(|s| s.as_array()) {
+                            if let Some(streams_array) =
+                                json.get("streams").and_then(|s| s.as_array())
+                            {
                                 let mut result = Vec::new();
                                 for stream in streams_array {
                                     let codec = stream
@@ -893,51 +909,59 @@ impl FFPROBE {
                                         .to_string();
 
                                     // Extract tags (language, title, etc.)
-                                    let (language, title) = if let Some(tags_obj) = stream.get("tags") {
-                                        let lang = tags_obj
-                                            .get("language")
-                                            .and_then(|l| l.as_str())
-                                            .map(|s| s.to_string());
-                                        let title_tag = tags_obj
-                                            .get("title")
-                                            .and_then(|t| t.as_str())
-                                            .map(|s| s.to_string());
-                                        (lang, title_tag)
-                                    } else {
-                                        (None, None)
-                                    };
+                                    let (language, title) =
+                                        if let Some(tags_obj) = stream.get("tags") {
+                                            let lang = tags_obj
+                                                .get("language")
+                                                .and_then(|l| l.as_str())
+                                                .map(|s| s.to_string());
+                                            let title_tag = tags_obj
+                                                .get("title")
+                                                .and_then(|t| t.as_str())
+                                                .map(|s| s.to_string());
+                                            (lang, title_tag)
+                                        } else {
+                                            (None, None)
+                                        };
 
                                     // Extract disposition
-                                    let disposition = if let Some(disposition_obj) = stream.get("disposition") {
-                                        Disposition {
-                                            default: disposition_obj
-                                                .get("default")
-                                                .and_then(|d| d.as_i64())
-                                                .unwrap_or(0) != 0,
-                                            forced: disposition_obj
-                                                .get("forced")
-                                                .and_then(|f| f.as_i64())
-                                                .unwrap_or(0) != 0,
-                                            attached_pic: disposition_obj
-                                                .get("attached_pic")
-                                                .and_then(|a| a.as_i64())
-                                                .unwrap_or(0) != 0,
-                                            comment: disposition_obj
-                                                .get("comment")
-                                                .and_then(|c| c.as_i64())
-                                                .unwrap_or(0) != 0,
-                                            karaoke: disposition_obj
-                                                .get("karaoke")
-                                                .and_then(|k| k.as_i64())
-                                                .unwrap_or(0) != 0,
-                                            lyrics: disposition_obj
-                                                .get("lyrics")
-                                                .and_then(|l| l.as_i64())
-                                                .unwrap_or(0) != 0,
-                                        }
-                                    } else {
-                                        Disposition::default()
-                                    };
+                                    let disposition =
+                                        if let Some(disposition_obj) = stream.get("disposition") {
+                                            Disposition {
+                                                default: disposition_obj
+                                                    .get("default")
+                                                    .and_then(|d| d.as_i64())
+                                                    .unwrap_or(0)
+                                                    != 0,
+                                                forced: disposition_obj
+                                                    .get("forced")
+                                                    .and_then(|f| f.as_i64())
+                                                    .unwrap_or(0)
+                                                    != 0,
+                                                attached_pic: disposition_obj
+                                                    .get("attached_pic")
+                                                    .and_then(|a| a.as_i64())
+                                                    .unwrap_or(0)
+                                                    != 0,
+                                                comment: disposition_obj
+                                                    .get("comment")
+                                                    .and_then(|c| c.as_i64())
+                                                    .unwrap_or(0)
+                                                    != 0,
+                                                karaoke: disposition_obj
+                                                    .get("karaoke")
+                                                    .and_then(|k| k.as_i64())
+                                                    .unwrap_or(0)
+                                                    != 0,
+                                                lyrics: disposition_obj
+                                                    .get("lyrics")
+                                                    .and_then(|l| l.as_i64())
+                                                    .unwrap_or(0)
+                                                    != 0,
+                                            }
+                                        } else {
+                                            Disposition::default()
+                                        };
 
                                     result.push(SubtitleStream {
                                         codec,
@@ -996,10 +1020,12 @@ impl FFPROBE {
         let command = self
             .ffprobe
             .args([
-                "-v", "error",
+                "-v",
+                "error",
                 "-show_entries",
                 "chapter=id,time_base,start,end,title",
-                "-of", "json",
+                "-of",
+                "json",
                 path,
             ])
             .stdout(Stdio::piped())
@@ -1041,13 +1067,14 @@ impl FFPROBE {
                         }
 
                         if let Ok(json) = serde_json::from_str::<Value>(&json_str) {
-                            if let Some(chapters_array) = json.get("chapters").and_then(|c| c.as_array()) {
+                            if let Some(chapters_array) =
+                                json.get("chapters").and_then(|c| c.as_array())
+                            {
                                 let mut result = Vec::new();
                                 for chapter in chapters_array {
-                                    let id = chapter
-                                        .get("id")
-                                        .and_then(|i| i.as_u64())
-                                        .unwrap_or(0);
+                                    println!(">> {:?}", chapter);
+                                    let id =
+                                        chapter.get("id").and_then(|i| i.as_u64()).unwrap_or(0);
 
                                     let time_base = chapter
                                         .get("time_base")
@@ -1057,15 +1084,13 @@ impl FFPROBE {
 
                                     let start = chapter
                                         .get("start")
-                                        .and_then(|s| s.as_str())
-                                        .and_then(|s| s.parse::<f64>().ok())
-                                        .unwrap_or(0.0);
+                                        .and_then(|s| s.as_f64())
+                                        .unwrap_or(0.0)
+                                        / 1000.0;
 
-                                    let end = chapter
-                                        .get("end")
-                                        .and_then(|e| e.as_str())
-                                        .and_then(|e| e.parse::<f64>().ok())
-                                        .unwrap_or(0.0);
+                                    let end =
+                                        chapter.get("end").and_then(|e| e.as_f64()).unwrap_or(0.0)
+                                            / 1000.0;
 
                                     let title = chapter
                                         .get("title")

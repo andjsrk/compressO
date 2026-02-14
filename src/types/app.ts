@@ -2,8 +2,13 @@ import { DateValue } from '@internationalized/date'
 import { TimelineAction } from '@xzdarcy/timeline-engine'
 
 import {
+  AudioStream,
+  Chapter,
+  ContainerInfo,
   compressionPresets,
   extensions,
+  SubtitleStream,
+  VideoStream,
   VideoTransforms,
   VideoTransformsHistory,
 } from '@/types/compression'
@@ -86,6 +91,13 @@ export type Video = {
   fps?: number
   previewMode?: 'video' | 'image'
   previewVideoFrameUrl?: string | null
+  videoInfoRaw?: {
+    containerInfo?: ContainerInfo
+    videoStreams?: VideoStream[]
+    audioStreams?: AudioStream[]
+    subtitleStreams?: SubtitleStream[]
+    chapters?: Chapter[]
+  }
 }
 
 export type App = {

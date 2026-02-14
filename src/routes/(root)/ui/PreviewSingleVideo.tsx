@@ -8,7 +8,7 @@ import Divider from '@/components/Divider'
 import Icon from '@/components/Icon'
 import Image from '@/components/Image'
 import { CircularProgress } from '@/components/Progress'
-import { slideDownTransition, zoomInTransition } from '@/utils/animation'
+import { slideUpTransition, zoomInTransition } from '@/utils/animation'
 import { formatDuration } from '@/utils/string'
 import { cn } from '@/utils/tailwind'
 import styles from './styles.module.css'
@@ -178,7 +178,7 @@ function PreviewSingleVideo({ videoIndex }: PreviewSingleVideoProps) {
       {showVideoInfo ? (
         <motion.div
           className="absolute right-0 bottom-0 left-0 top-0 w-full h-full z-[10] bg-white1 dark:bg-black1 p-6"
-          {...slideDownTransition}
+          {...slideUpTransition}
         >
           <div className="2xl:max-w-[50vw] mx-auto">
             <VideoInfo videoIndex={videoIndex} />
