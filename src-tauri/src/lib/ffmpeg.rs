@@ -538,6 +538,8 @@ impl FFMPEG {
 
                 let is_cancelled = should_cancel.lock().unwrap();
                 if *is_cancelled {
+                    // Delete the partial output file
+                    std::fs::remove_file(&output_file).ok();
                     return Err(String::from("CANCELLED"));
                 }
 

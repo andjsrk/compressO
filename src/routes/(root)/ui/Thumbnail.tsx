@@ -246,9 +246,7 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                 (video?.dimensions?.height ?? 1),
             }}
             onError={() => {
-              toast.warning(
-                'Could not load video. Switching to image thumbnail...',
-              )
+              toast.warning('Switching to image thumbnail...')
               appProxy.state.videos[videoIndex].previewMode = 'image'
             }}
             onProgress={({ playedSeconds }: OnProgressProps) => {
