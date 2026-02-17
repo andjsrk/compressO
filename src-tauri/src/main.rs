@@ -37,7 +37,7 @@ use std::sync::Mutex;
 const LOG_TARGETS: [LogTarget; 1] = [LogTarget::new(LogTargetKind::Stdout)];
 
 #[cfg(not(debug_assertions))]
-const LOG_TARGETS: [LogTarget; 1] = [];
+const LOG_TARGETS: [LogTarget; 0] = [];
 
 // Global storage for URLs that arrive before app setup completes.
 // "Open with CompressO" triggers `application:openURLs` before app setup is complete
