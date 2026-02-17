@@ -5,10 +5,8 @@ import ReactDOM from 'react-dom'
 
 import Icon from '@/components/Icon'
 import { toast } from '@/components/Toast'
-import { extensions } from '@/types/compression'
+import { readFilesFromPaths } from '@/tauri/commands/fs'
 import { zoomInTransition } from '@/utils/animation'
-
-const videoExtensions = Object.keys(extensions?.video)
 
 type DragAndDropProps = {
   disable?: boolean
@@ -50,7 +48,7 @@ function DragAndDrop({
       if (!disable) {
         dragAndDropListenerRef.current.drop = await event.listen<{
           paths: string[]
-        }>(event.TauriEvent.DRAG_DROP, (evt) => {
+        }>(event.TauriEvent.DRAG_DROP, async (evt) => {
           setDragAndDropState('dropped')
           if (!dragAndDropListenerIsDroppedRef.current) {
             dragAndDropListenerIsDroppedRef.current = true
@@ -58,40 +56,13 @@ function DragAndDrop({
               dragAndDropListenerIsDroppedRef.current = false
             }, 1000)
             toast.dismiss()
-            const paths = evt?.payload?.paths
-            if (paths.length > 0) {
-              if (multiple) {
-                const validPaths = paths.filter((filePath) => {
-                  const filePathSplitted = filePath?.split('.')
-                  if (filePathSplitted.length) {
-                    const fileExtension =
-                      filePathSplitted?.[
-                        filePathSplitted.length - 1
-                      ].toLowerCase()
-                    return videoExtensions?.includes(fileExtension)
-                  }
-                  return false
-                })
-                if (validPaths.length === 0) {
-                  toast.error('Invalid video files.')
-                } else {
-                  onFile?.(validPaths)
-                }
-              } else {
-                const filePath = paths?.[0]
-                const filePathSplitted = filePath?.split('.')
-                if (filePathSplitted.length) {
-                  const fileExtension =
-                    filePathSplitted?.[
-                      filePathSplitted.length - 1
-                    ].toLowerCase()
-                  if (!videoExtensions?.includes(fileExtension)) {
-                    toast.error('Invalid video file.')
-                  } else {
-                    onFile?.(filePath)
-                  }
-                }
-              }
+            const pathsPayload = evt?.payload?.paths
+            const paths = multiple ? pathsPayload : pathsPayload.slice(0, 1)
+            const files = await readFilesFromPaths(paths)
+            if (Array.isArray(files)) {
+              onFile?.(files)
+            } else {
+              toast.error('Invalid files/folders')
             }
           }
         })

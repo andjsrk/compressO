@@ -43,6 +43,7 @@ function Root() {
       })
 
       if (videoPaths.length === 0) {
+        toast.error('No valid files found.')
         return
       }
 
