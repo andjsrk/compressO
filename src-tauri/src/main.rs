@@ -3,7 +3,7 @@
 
 use lib::fs::{self as file_system};
 use std::sync::{Arc, Mutex, OnceLock};
-use tauri::{Emitter, Manager, Url};
+use tauri::{Emitter, Listener, Manager, Url};
 use tauri_plugin_fs::FsExt;
 use tauri_plugin_log::{Target as LogTarget, TargetKind as LogTargetKind};
 
@@ -30,8 +30,10 @@ use lib::tauri_commands::{
 
 #[cfg(target_os = "linux")]
 use lib::tauri_commands::file_manager::DbusState;
+
+#[cfg(any(windows, target_os = "linux"))]
 use std::path::PathBuf;
-#[cfg(target_os = "linux")]
+
 #[cfg(debug_assertions)]
 const LOG_TARGETS: [LogTarget; 1] = [LogTarget::new(LogTargetKind::Stdout)];
 
@@ -47,6 +49,38 @@ struct PendingFiles(Arc<Mutex<Vec<String>>>);
 impl PendingFiles {
     fn new() -> Self {
         Self(Arc::new(Mutex::new(Vec::new())))
+    }
+}
+
+struct FrontendReady(Arc<Mutex<bool>>);
+
+impl FrontendReady {
+    fn new() -> Self {
+        Self(Arc::new(Mutex::new(false)))
+    }
+
+    fn set_ready(&self) {
+        *self.0.lock().unwrap() = true;
+    }
+
+    fn is_ready(&self) -> bool {
+        *self.0.lock().unwrap()
+    }
+}
+
+fn emit_pending_open_with_app_files(app_handle: &tauri::AppHandle) {
+    if let Some(pending) = app_handle.try_state::<PendingFiles>() {
+        let pending_inner = pending.0.clone();
+        let app_handle_clone = app_handle.clone();
+
+        let mut list = pending_inner.lock().unwrap();
+        if !list.is_empty() {
+            let files_to_emit = list.drain(..).collect::<Vec<_>>();
+            drop(list);
+            if let Err(e) = app_handle_clone.emit("open-with-app", files_to_emit) {
+                log::error!("Failed to emit open-with-app event: {:?}", e);
+            }
+        }
     }
 }
 
@@ -84,6 +118,7 @@ fn handle_open_with_app(app_handle: &tauri::AppHandle, urls: Vec<Url>) -> Result
     }
 
     if let Some(pending) = app_handle.try_state::<PendingFiles>() {
+        let frontend_ready = app_handle.try_state::<FrontendReady>();
         let pending_inner = pending.0.clone();
 
         {
@@ -93,19 +128,19 @@ fn handle_open_with_app(app_handle: &tauri::AppHandle, urls: Vec<Url>) -> Result
             list.extend(new_files);
         }
 
-        let app_handle_clone = app_handle.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-
-            let mut list = pending_inner.lock().unwrap();
-            if !list.is_empty() {
-                let files_to_emit = list.drain(..).collect::<Vec<_>>();
-                drop(list);
-                if let Err(e) = app_handle_clone.emit("open-with-app", files_to_emit) {
-                    log::error!("Failed to emit open-with-app event: {:?}", e);
+        if let Some(ready_state) = frontend_ready {
+            if ready_state.is_ready() {
+                let app_handle_clone = app_handle.clone();
+                let mut list = pending_inner.lock().unwrap();
+                if !list.is_empty() {
+                    let files_to_emit = list.drain(..).collect::<Vec<_>>();
+                    drop(list);
+                    if let Err(e) = app_handle_clone.emit("open-with-app", files_to_emit) {
+                        log::error!("Failed to emit open-with-app event: {:?}", e);
+                    }
                 }
             }
-        });
+        }
     } else {
         log::info!(
             "PendingFiles state not ready, storing {} URLs for later",
@@ -134,6 +169,7 @@ async fn main() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             app.manage(PendingFiles::new());
+            app.manage(FrontendReady::new());
 
             #[cfg(target_os = "linux")]
             app.manage(DbusState(Mutex::new(
@@ -141,6 +177,17 @@ async fn main() {
             )));
 
             file_system::setup_app_data_dir(app)?;
+
+            let app_handle = app.handle().clone();
+            app.once("frontend-ready", move |_| {
+                log::info!("Frontend is ready, checking for pending files");
+
+                if let Some(ready_state) = app_handle.try_state::<FrontendReady>() {
+                    ready_state.set_ready();
+                }
+
+                emit_pending_open_with_app_files(&app_handle);
+            });
 
             if let Some(early_urls) = EARLY_URLS.get() {
                 let urls_to_process = {
