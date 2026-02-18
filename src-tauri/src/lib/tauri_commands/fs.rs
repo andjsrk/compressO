@@ -79,3 +79,25 @@ pub async fn read_files_from_clipboard(
 
     Ok(all_files)
 }
+
+#[tauri::command]
+pub async fn read_files_from_paths(
+    app_handle: tauri::AppHandle,
+    paths: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let fs_scope = app_handle.fs_scope();
+    let asset_scope = app_handle.asset_protocol_scope();
+
+    let mut all_files = Vec::new();
+
+    for path in &paths {
+        let files = collect_files(path, Some(0)).map_err(|err| err.to_string())?;
+        for file in &files {
+            let _ = fs_scope.allow_file(file);
+            let _ = asset_scope.allow_file(file);
+        }
+        all_files.extend(files);
+    }
+
+    Ok(all_files)
+}

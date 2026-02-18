@@ -43,19 +43,27 @@ function PreviewBatchVideos() {
       ? totalVideos - compressedCount
       : 0
 
-    const originalSize = completedVideos.reduce(
-      (sum, v) => sum + (v.sizeInBytes ?? 0),
-      0,
-    )
+    const originalSizeOfCompressedOnly = completedVideos.reduce((sum, v) => {
+      const cs = v.compressedVideo?.sizeInBytes
+      const os = v.sizeInBytes ?? 0
+
+      return sum + (cs != null && cs < os ? os : 0)
+    }, 0)
+    const outputSize = completedVideos.reduce((sum, v) => {
+      const cs = v.compressedVideo?.sizeInBytes
+      return sum + (cs != null ? cs : 0)
+    }, 0)
     const compressedSize = completedVideos.reduce((sum, v) => {
       const cs = v.compressedVideo?.sizeInBytes
       const os = v.sizeInBytes ?? 0
 
       return sum + (cs != null && cs < os ? cs : 0)
     }, 0)
-    const sizeSaved = originalSize - compressedSize
+    const sizeSaved = originalSizeOfCompressedOnly - compressedSize
     const percentageSaved =
-      originalSize > 0 ? (sizeSaved / originalSize) * 100 : 0
+      originalSizeOfCompressedOnly > 0
+        ? (sizeSaved / originalSizeOfCompressedOnly) * 100
+        : 0
 
     const totalProgress = videos.reduce(
       (a, c) => a + (c?.compressionProgress ?? 0) / videos.length,
@@ -74,6 +82,7 @@ function PreviewBatchVideos() {
       totalSize,
       compressedCount,
       compressedSize,
+      outputSize,
       sizeSaved,
       percentageSaved,
       totalProgress,
@@ -473,7 +482,7 @@ function PreviewBatchVideos() {
                           : '',
                       )}
                     >
-                      {formatBytes(compressionStats.compressedSize ?? 0) || '-'}
+                      {formatBytes(compressionStats.outputSize ?? 0) || '-'}
                     </p>
                   </div>
                   <Divider orientation="vertical" className="h-8" />

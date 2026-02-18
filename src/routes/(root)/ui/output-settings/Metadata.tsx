@@ -84,6 +84,15 @@ function Metadata({ videoIndex }: MetadataProps) {
               field
             ] as string | null | undefined) = value
             normalizeBatchVideosConfig()
+
+            if (
+              field === 'creationTimeRaw' &&
+              appProxy.state.commonConfigForBatchCompression?.metadataConfig
+            ) {
+              appProxy.state.commonConfigForBatchCompression.metadataConfig![
+                'creationTime'
+              ] = (value as any)?.toDate('')?.toISOString()
+            }
           }
         }
       }, 300)
@@ -250,6 +259,20 @@ function Metadata({ videoIndex }: MetadataProps) {
                   isDisabled={shouldDisableInput}
                   onValueChange={(value) =>
                     updateMetadataField('comment', value)
+                  }
+                  className="mb-3"
+                />
+                <Divider className="mb-6" />
+              </div>
+              <div className="!mt-[-10px]">
+                <TextArea
+                  type="text"
+                  label="Copyright"
+                  placeholder="Enter copyright information"
+                  defaultValue={metadataConfig?.copyright ?? ''}
+                  isDisabled={shouldDisableInput}
+                  onValueChange={(value) =>
+                    updateMetadataField('copyright', value)
                   }
                   className="mb-3"
                 />

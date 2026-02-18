@@ -13,6 +13,7 @@ export const videoMetadataConfigInitialState: VideoMetadataConfig = {
   synopsis: '',
   year: '',
   genre: '',
+  copyright: '',
   creationTime: '',
   creationTimeRaw: now(getLocalTimeZone()),
 }

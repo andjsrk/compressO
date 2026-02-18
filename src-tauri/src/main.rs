@@ -2,8 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use lib::fs::{self as file_system};
-use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Manager, Runtime, Url};
+use std::sync::{Arc, Mutex, OnceLock};
+use tauri::{Emitter, Manager, Url};
 use tauri_plugin_fs::FsExt;
 use tauri_plugin_log::{Target as LogTarget, TargetKind as LogTargetKind};
 
@@ -22,8 +22,9 @@ use lib::tauri_commands::{
     fs::{
         __cmd__copy_file_to_clipboard, __cmd__delete_cache, __cmd__delete_file,
         __cmd__get_file_metadata, __cmd__get_image_dimension, __cmd__move_file,
-        __cmd__read_files_from_clipboard, copy_file_to_clipboard, delete_cache, delete_file,
-        get_file_metadata, get_image_dimension, move_file, read_files_from_clipboard,
+        __cmd__read_files_from_clipboard, __cmd__read_files_from_paths, copy_file_to_clipboard,
+        delete_cache, delete_file, get_file_metadata, get_image_dimension, move_file,
+        read_files_from_clipboard, read_files_from_paths,
     },
 };
 
@@ -39,6 +40,10 @@ const LOG_TARGETS: [LogTarget; 1] = [LogTarget::new(LogTargetKind::Stdout)];
 #[cfg(not(debug_assertions))]
 const LOG_TARGETS: [LogTarget; 0] = [];
 
+// Global storage for URLs that arrive before app setup completes.
+// "Open with CompressO" triggers `application:openURLs` before app setup is complete
+static EARLY_URLS: OnceLock<Mutex<Vec<Url>>> = OnceLock::new();
+
 struct PendingFiles(Arc<Mutex<Vec<String>>>);
 
 impl PendingFiles {
@@ -47,7 +52,7 @@ impl PendingFiles {
     }
 }
 
-fn handle_open_with_app(app_handle: &tauri::AppHandle, urls: Vec<Url>) {
+fn handle_open_with_app(app_handle: &tauri::AppHandle, urls: Vec<Url>) -> Result<(), String> {
     let fs_scope = app_handle.fs_scope();
     let asset_scope = app_handle.asset_protocol_scope();
 
@@ -59,30 +64,61 @@ fn handle_open_with_app(app_handle: &tauri::AppHandle, urls: Vec<Url>) {
 
     for url in &urls {
         if let Ok(path) = url.to_file_path() {
-            let _ = fs_scope.allow_file(&path);
-            let _ = asset_scope.allow_file(&path);
+            if let Err(e) = fs_scope.allow_file(&path) {
+                let path_str = path.to_string_lossy().to_string();
+                log::error!(
+                    "Failed to allow file in fs_scope: {} - Error: {:?}",
+                    path_str,
+                    e
+                );
+                return Err(format!("Failed to allow file in fs_scope: {}", path_str));
+            }
+            if let Err(e) = asset_scope.allow_file(&path) {
+                let path_str = path.to_string_lossy().to_string();
+                log::error!(
+                    "Failed to allow file in asset_scope: {} - Error: {:?}",
+                    path_str,
+                    e
+                );
+                return Err(format!("Failed to allow file in asset_scope: {}", path_str));
+            }
         }
     }
 
-    let pending = app_handle.state::<PendingFiles>();
-    let pending_inner = pending.0.clone();
+    if let Some(pending) = app_handle.try_state::<PendingFiles>() {
+        let pending_inner = pending.0.clone();
 
-    {
-        let mut list = pending_inner.lock().unwrap();
-        list.extend(new_files);
+        {
+            let mut list = pending_inner
+                .lock()
+                .map_err(|e| format!("Failed to lock pending files: {:?}", e))?;
+            list.extend(new_files);
+        }
+
+        let app_handle_clone = app_handle.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+
+            let mut list = pending_inner.lock().unwrap();
+            if !list.is_empty() {
+                let files_to_emit = list.drain(..).collect::<Vec<_>>();
+                drop(list);
+                if let Err(e) = app_handle_clone.emit("open-with-app", files_to_emit) {
+                    log::error!("Failed to emit open-with-app event: {:?}", e);
+                }
+            }
+        });
+    } else {
+        log::info!(
+            "PendingFiles state not ready, storing {} URLs for later",
+            urls.len()
+        );
+        let early_urls = EARLY_URLS.get_or_init(|| Mutex::new(Vec::new()));
+        let mut stored = early_urls.lock().unwrap();
+        stored.extend(urls);
     }
 
-    let app_handle_clone = app_handle.clone();
-    tokio::spawn(async move {
-        tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-
-        let mut list = pending_inner.lock().unwrap();
-        if !list.is_empty() {
-            let files_to_emit = list.drain(..).collect::<Vec<_>>();
-            drop(list);
-            let _ = app_handle_clone.emit("open-with-app", files_to_emit);
-        }
-    });
+    Ok(())
 }
 
 #[tokio::main]
@@ -108,22 +144,45 @@ async fn main() {
 
             file_system::setup_app_data_dir(app)?;
 
+            if let Some(early_urls) = EARLY_URLS.get() {
+                let urls_to_process = {
+                    let mut stored = early_urls.lock().unwrap();
+                    if stored.is_empty() {
+                        None
+                    } else {
+                        Some(stored.drain(..).collect::<Vec<_>>())
+                    }
+                };
+
+                if let Some(urls) = urls_to_process {
+                    log::info!("Processing {} early URLs after setup", urls.len());
+                    if let Err(e) = handle_open_with_app(app.handle(), urls) {
+                        log::error!("Failed to handle early open with app URLs: {:?}", e);
+                    }
+                }
+            }
+
             #[cfg(any(windows, target_os = "linux"))]
             {
-                let mut files = Vec::new();
+                let mut urls = Vec::new();
                 for maybe_file in std::env::args().skip(1) {
                     if maybe_file.starts_with('-') {
                         continue;
                     }
                     if let Ok(url) = url::Url::parse(&maybe_file) {
-                        if let Ok(path) = url.to_file_path() {
-                            files.push(path);
+                        if let Ok(_path) = url.to_file_path() {
+                            urls.push(url);
                         }
                     } else {
-                        files.push(PathBuf::from(maybe_file))
+                        let path = PathBuf::from(&maybe_file);
+                        if let Ok(url_str) = Url::from_file_path(&path) {
+                            urls.push(url_str);
+                        }
                     }
                 }
-                handle_open_with_app(app.handle().clone(), files);
+                if let Err(e) = handle_open_with_app(app.handle(), urls) {
+                    log::error!("Failed to handle open with app (platform args): {:?}", e);
+                }
             }
 
             Ok(())
@@ -141,6 +200,7 @@ async fn main() {
             show_item_in_file_manager,
             copy_file_to_clipboard,
             read_files_from_clipboard,
+            read_files_from_paths,
             get_audio_streams,
             get_chapters,
             get_container_info,
@@ -154,7 +214,9 @@ async fn main() {
             |app_handle, event| {
                 #[cfg(any(target_os = "macos"))]
                 if let tauri::RunEvent::Opened { urls } = event {
-                    handle_open_with_app(app_handle, urls);
+                    if let Err(e) = handle_open_with_app(app_handle, urls) {
+                        log::error!("Failed to handle open with app (macOS): {:?}", e);
+                    }
                 }
             },
         );

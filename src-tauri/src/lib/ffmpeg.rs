@@ -497,6 +497,10 @@ impl FFMPEG {
                 metadata_args.push("-metadata".to_string());
                 metadata_args.push(format!("genre={}", genre.trim()));
             }
+            if let Some(ref copyright) = metadata.copyright {
+                metadata_args.push("-metadata".to_string());
+                metadata_args.push(format!("copyright={}", copyright.trim()));
+            }
             if let Some(ref creation_time) = metadata.creation_time {
                 metadata_args.push("-metadata".to_string());
                 metadata_args.push(format!("creation_time={}", creation_time.trim()));

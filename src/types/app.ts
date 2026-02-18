@@ -23,6 +23,7 @@ export type VideoMetadataConfig = {
   description?: string | null
   synopsis?: string | null
   genre?: string | null
+  copyright?: string | null
   creationTime?: string | null
   creationTimeRaw?: DateValue | null
   shouldEnableCreationTime?: boolean

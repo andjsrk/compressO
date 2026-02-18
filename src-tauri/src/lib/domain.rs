@@ -171,6 +171,7 @@ pub struct VideoMetadataConfig {
     pub description: Option<String>,
     pub synopsis: Option<String>,
     pub genre: Option<String>,
+    pub copyright: Option<String>,
     pub creation_time: Option<String>,
 }
 
