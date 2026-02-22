@@ -1,0 +1,34 @@
+cask "compresso" do
+  version "{{VERSION}}"
+
+  on_arm do
+    url "https://github.com/codeforreal1/compressO/releases/download/\#{version}/CompressO_\#{version}_aarch64.dmg",
+        verified: "github.com/codeforreal1/compressO/"
+    sha256 "{{ARM64_SHA256}}"
+  end
+
+  on_intel do
+    url "https://github.com/codeforreal1/compressO/releases/download/\#{version}/CompressO_\#{version}_x64.dmg",
+        verified: "github.com/codeforreal1/compressO/"
+    sha256 "{{X64_SHA256}}"
+  end
+
+  name "CompressO"
+  desc "Compress any video file to a tiny size"
+  homepage "https://github.com/codeforreal1/compressO"
+
+  depends_on macos: ">= :ventura" # macOS 13
+
+  postflight do
+    system "xattr -dr com.apple.quarantine #{appdir}/CompressO.app"
+  end
+
+  app "CompressO.app"
+
+  zap trash: [
+    "~/Library/Application Support/com.compresso.app",
+    "~/Library/Caches/com.compresso.app",
+    "~/Library/Preferences/com.compresso.app.plist",
+    "~/Library/Saved Application State/com.compresso.app.savedState",
+  ]
+end

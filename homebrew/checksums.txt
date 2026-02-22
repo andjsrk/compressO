@@ -1,0 +1,10 @@
+CompressO v2.0.0 Checksums
+================================
+
+ARM64 (Apple Silicon):
+  File: CompressO_2.0.0_aarch64.dmg
+  SHA256: 6297eff0aec043d122f44b11287215c55443cc9d679cccb86cb9ea65725c484b
+
+Intel (x86_64):
+  File: CompressO_2.0.0_x64.dmg
+  SHA256: 89ccfa190c21aa9179b5a5ccd93bf1763162a7a78cc2b141aaa1f55c4a7479e2
