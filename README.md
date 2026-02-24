@@ -33,9 +33,7 @@
 </div>
 
 ### Install
-<p>
-  Download installers📦 for the specific platform can be accessed from the [releases](https://github.com/codeforreal1/compressO/releases) page.
-</p>
+Download installers📦 for the specific platform can be accessed from the [releases](https://github.com/codeforreal1/compressO/releases) page.
 
 <strong>Installer Info:</strong>
 
