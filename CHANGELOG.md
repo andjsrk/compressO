@@ -1,5 +1,43 @@
 # Changelog
 
+### 2.0.0
+
+Features:
+
+- Batch compression.
+- Video trim/split functionality.
+- Video player for Mac & Windows. Note: Linux WebGTK does not support playing local videos, so this feature is not available on Linux.
+- Paste video files from clipboard. Paste a directory from clipboard for batch compression.
+- Drag & drop a directory containing videos for batch compression.
+- Open video files in CompressO directory from file managers. Just right click and select "Open with CompressO"
+- Full video information including video container, video, audio, subtitles, chapters, etc.
+- Copy compressed video to clipboard functionality.
+- Video codec selection.
+- Brand new Audio tab containing:
+    - Audio codec selection.
+    - Audio track selection.
+    - Audio channel manipulation.
+    - Audio bit rate manipulation.
+    - Audio volume adjustment.
+- Video metadata editing (title, artist, album, year, genre, description, comments, synopsis, copyright, creation date, etc.).
+- Custom thumbnail for video. The thumbnail shows as a preview on file managers.
+- Homebrew support for macOS installation.
+
+Enhancements:
+
+- Revamped UI with tabs for video, audio, and metadata settings.
+- Improved slider UI components.
+- Thumbnail regeneration for videos on image thumbnail mode.
+- Video frame capture for transformations.
+
+Bug Fixes:
+
+- Remove support for 32-bit Windows.
+- Windows release builds have been changed to `nsis` from `msi` for better compatibility.
+- Fix Linux desktop template file to be more specific. [LINK](https://github.com/codeforreal1/compressO/issues/72)
+- Preserve audio tracks when the video contains multiple audio tracks. [LINK](https://github.com/codeforreal1/compressO/issues/23)
+- Fix drag & drop issue on Windows.
+
 ### 1.1.0
 
 Features:
