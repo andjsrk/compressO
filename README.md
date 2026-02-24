@@ -13,34 +13,27 @@
     <p align="center">
 		Available for <strong>Linux</strong>, <strong>Windows</strong> & <strong>MacOS</strong>.
     </p>
-    <p>
-      <strong>Download 📦</strong>
-    </p>
-    <div>
-      <a href="https://github.com/codeforreal1/compressO/releases">
-        <img alt="Linux" src="https://img.shields.io/badge/-Linux-yellow?style=flat-square&logo=linux&logoColor=black&color=orange" />
-      </a>
-      <a href="https://github.com/codeforreal1/compressO/releases">
-        <img alt="Windows" src="https://img.shields.io/badge/-Windows-blue?style=flat-square&logo=windows&logoColor=white" />
-      </a>
-      <a href="https://github.com/codeforreal1/compressO/releases">
-        <img alt="macOS" src="https://img.shields.io/badge/-macOS-black?style=flat-square&logo=apple&logoColor=white" />
-      </a>
-    </div>
     <br />
 </div>
 <div align="center">
     <img src="public/screenshot.png" alt="Screenshot" height="500" style="border-radius: 16px;" />
 </div>
 
-### Tech ⌨
-
-This app is created using [Tauri](https://tauri.app/), a Rust🦀 framework for building a cross-platform desktop app. It uses [Vite](https://vite.dev/) as a frontend layer. The compression is done entirely by [FFmpeg](https://ffmpeg.org/) using platform specific standalone binaries.
-The app works completely offline and no any network requests is made to/from the app.
-
-### Downloads ⬇️
-
-Download installers for the specific platform can be accessed from the [releases](https://github.com/codeforreal1/compressO/releases) page.
+### Install
+<p>
+  Download installers📦 for the specific platform can be accessed from the [releases](https://github.com/codeforreal1/compressO/releases) page.
+</p>
+<div>
+  <a href="https://github.com/codeforreal1/compressO/releases">
+    <img alt="Linux" src="https://img.shields.io/badge/-Linux-yellow?style=flat-square&logo=linux&logoColor=black&color=orange" />
+  </a>
+  <a href="https://github.com/codeforreal1/compressO/releases">
+    <img alt="Windows" src="https://img.shields.io/badge/-Windows-blue?style=flat-square&logo=windows&logoColor=white" />
+  </a>
+  <a href="https://github.com/codeforreal1/compressO/releases">
+    <img alt="macOS" src="https://img.shields.io/badge/-macOS-black?style=flat-square&logo=apple&logoColor=white" />
+  </a>
+</div>
 
 <strong>Installer Info:</strong>
 
@@ -49,51 +42,90 @@ Download installers for the specific platform can be accessed from the [releases
 - `CompressO_aarch64.dmg` : For Macbooks with Apple Silicon Chips
 - `CompressO_x64.dmg` : For Macbooks with Intel Chip
 - `CompressO_x64.msi`: Windows 64 bit
-- `CompressO_x86.msi`: Windows 32 bit
 
-### Roadmap 🏁
+<strong>Homebrew: MacOS only!</strong>
+```
+brew install --cask codeforreal1/tap/compresso
+```
 
-- [x] Cancel during compression
-- [x] Drag & Drop video
-- [x] Mute video
-- [ ] Batch compression
-      ...
+> [!NOTE]
+> By using CompressO, you acknowledge that it's not [notarized](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution).
+>
+> Notarization is a "security" feature by Apple.
+> You send binaries to Apple, and they either approve them or not.
+> In reality, notarization is about paying $100 annual fee to Apple and building the app/binaries the way they want it.
+>
+> This is a free & open-source app. Paying the annual fee and notarizing the app to appease Apple is not feasible.
+>
+> The [Homebrew installation script](https://github.com/codeforreal1/homebrew-tap/blob/main/Casks/compresso.rb) is configured to
+> automatically delete `com.apple.quarantine` attribute, that's why the app should work out of the box, without any warnings like 
+> "CompressO is damaged and can't be opened. You should move it to trash." that Apple show as a gatekeeper.
 
-### FAQs ❓
 
-1.  <strong> MacOS: "CompressO" is damaged and can't be opened. You should move it to trash. </strong>
-    !["CompressO" is damaged and can't be opened. You should move it to trash.](assets/image.png)
-    <p>
-    This error is shown by Apple to gatekeep app developers from using their apps unless it's signed by Apple after paying $100/year fee. The message is completely misleading since the app is not damaged at all. Since this is a free app, I'm not going to go Apple's route just to appease them to make people trust my app. Here's a simple solution for this issue. Open your terminal and run the command:
-    </p>
+### Tech
 
-        ```
-        xattr -cr /Applications/CompressO.app
-        ```
+This app is created using [Tauri](https://tauri.app/), a Rust🦀 framework for building a cross-platform desktop app. It uses [Vite](https://vite.dev/) as a frontend layer. The compression is done entirely by [FFmpeg](https://ffmpeg.org/) using platform specific standalone binaries.
+The app works completely offline and no any network requests is made to/from the app.
 
-      <p>
-           If you don't feel comfortable applying the above solution, you can simply move the app to trash (which also means you cannot use CompressO on your Mac).
-        </p>
+### FAQs
+<details>
+<summary>
+  <strong> 
+  MacOS: "CompressO" is damaged and can't be opened. You should move it to trash. 
+  </strong>
+</summary>
+<img src="assets/image.png" width="300" />
+<p>
+  This error is shown by Apple to gatekeep app developers from using their apps unless it's signed by Apple after paying $100/year fee. The message is completely misleading since the app is not damaged at all. Since this is a free app, I'm not going to go Apple's route just to appease them to make people trust my app. Here's a simple solution for this issue. Open your terminal and run the command:
+</p>
 
-2.  <strong> MacOS: "CompressO" cannot be opened because developer cannot be verified. </strong>
+```
+xattr -cr /Applications/CompressO.app
+```
+<p>
+  This error will not show if you install the app via Homebrew.
+</p>
+<p>
+  If you don't feel comfortable applying the above solution, you can simply move the app to trash (which also means you cannot use CompressO on your Mac).
+</p>
+</details>
+<details>
+<summary>
+  <strong>MacOS: "CompressO" cannot be opened because developer cannot be verified.</strong>
+</summary>
+<img src="assets/image-1.png" width="300" />
+<p>
+  This error is essentially the same as FAQ 1. Apple just displays a different message to warn users about unverified developers. Please refer to the solution in FAQ 1:
+</p>
+<pre><code>
+xattr -cr /Applications/CompressO.app
+</code></pre>
+<p>
+  This error will not show if you install the app via Homebrew.
+</p>
+<p>
+  If you don’t want to run the command, you can right-click the app and select "Open" to bypass the warning, or move the app to trash.
+</p>
+</details>
 
-    !["CompressO" cannot be opened because developer cannot be verified.](assets/image-1.png)
+<details>
+<summary>
+  <strong>Windows: Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.</strong>
+</summary>
+<img src="assets/image-2.png" width="500" />
+<p>
+  This happens because you downloaded the Windows installer from an outside source. Windows Defender warns you before running any unknown app. You can safely install CompressO by clicking "More Info" and then selecting "Run Anyway".
+</p>
+</details>
 
-      <p>
-        This error is same as the one above on FAQ 1. It's just, Apple made the message different to scare the end user. Please have a look at the solution above.
-          </p>
-
-    <br />
-
-3.  <strong>Windows: Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.</strong>
-    ![alt text](assets/image-2.png)
-
-    This is because you downloaded the windows installer from outside source and Windows Defender is warning you before installation. You can simply click on "More Info" and proceed with the installation.
-
-4.  <strong>App not working on Debian 13 & Ubuntu 24 </strong>
-    <p>
-    Tauri seems to be missing some packages that was removed in Debian 13 and it's derivatives like Ubuntu 24. Tauri team is investigating the issue. No solution atm, unfortunately.
-    </p>
+<details>
+<summary>
+  <strong>App not working on Debian 13 & Ubuntu 24</strong>
+</summary>
+<p>
+  Tauri seems to be missing some packages that were removed in Debian 13 and its derivatives like Ubuntu 24. The Tauri team is investigating the issue, so unfortunately there is no solution at the moment.
+</p>
+</details>
 
 ### License 🚨
 

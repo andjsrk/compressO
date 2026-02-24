@@ -22,7 +22,7 @@ echo -e "Version: ${YELLOW}${VERSION}${NC}"
 echo ""
 
 # Define paths
-ARM64_DMG_PATH="./src-tauri/target/release/bundle/dmg/${APP_NAME}_${VERSION}_aarch64.dmg"
+ARM64_DMG_PATH="./src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${APP_NAME}_${VERSION}_aarch64.dmg"
 X64_DMG_PATH="./src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/${APP_NAME}_${VERSION}_x64.dmg"
 HOMEBREW_OUTPUT_DIR="./homebrew"
 HOMEBREW_CASK_FILE="${HOMEBREW_OUTPUT_DIR}/compresso.rb"
@@ -77,9 +77,10 @@ CASK_CONTENT=$(echo "$CASK_CONTENT" | sed "s/{{X64_SHA256}}/${X64_SHA256}/g")
 # Write to main cask file
 echo "$CASK_CONTENT" > "$HOMEBREW_CASK_FILE"
 
-# Write versioned backup
+# Write versioned backup (with versioned cask name)
 VERSIONED_CASK_FILE="${HOMEBREW_OUTPUT_DIR}/casks/compresso-${VERSION}.rb"
-echo "$CASK_CONTENT" > "$VERSIONED_CASK_FILE"
+VERSIONED_CASK_CONTENT=$(echo "$CASK_CONTENT" | sed "s/cask \"compresso\"/cask \"compresso@${VERSION}\"/")
+echo "$VERSIONED_CASK_CONTENT" > "$VERSIONED_CASK_FILE"
 
 echo -e "${GREEN}✓ Main cask file generated: ${HOMEBREW_CASK_FILE}${NC}"
 echo -e "${GREEN}✓ Versioned backup created: ${VERSIONED_CASK_FILE}${NC}"

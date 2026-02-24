@@ -1,16 +1,15 @@
-cask "compresso" do
+# AUTO-GENERATED FILE. DO NOT EDIT!
+cask "compresso@2.0.0" do
   version "2.0.0"
 
   on_arm do
-    url "https://github.com/codeforreal1/compressO/releases/download/\#{version}/CompressO_\#{version}_aarch64.dmg",
-        verified: "github.com/codeforreal1/compressO/"
-    sha256 "6297eff0aec043d122f44b11287215c55443cc9d679cccb86cb9ea65725c484b"
+    url "https://github.com/codeforreal1/compressO/releases/download/#{version}/CompressO_#{version}_aarch64.dmg"
+    sha256 "1d3c700a16963534b9c1b5bfaa08ee2fb5729720dcea2772ba23210d4cbd445e"
   end
 
   on_intel do
-    url "https://github.com/codeforreal1/compressO/releases/download/\#{version}/CompressO_\#{version}_x64.dmg",
-        verified: "github.com/codeforreal1/compressO/"
-    sha256 "89ccfa190c21aa9179b5a5ccd93bf1763162a7a78cc2b141aaa1f55c4a7479e2"
+    url "https://github.com/codeforreal1/compressO/releases/download/#{version}/CompressO_#{version}_x64.dmg"
+    sha256 "306dd6dce3b62c4736558acb5c2e4e3b901c6c39f78e7f08080cee8f85f441b1"
   end
 
   name "CompressO"
@@ -20,7 +19,7 @@ cask "compresso" do
   depends_on macos: ">= :ventura" # macOS 13
 
   postflight do
-    system "xattr -dr com.apple.quarantine #{appdir}/CompressO.app"
+    system "xattr -cr com.apple.quarantine #{appdir}/CompressO.app"
   end
 
   app "CompressO.app"
