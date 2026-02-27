@@ -13,7 +13,6 @@
 /build
 /out/
 /dist/
-/dist-tauri/
 
 # misc
 .DS_Store

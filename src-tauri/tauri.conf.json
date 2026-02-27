@@ -5,7 +5,7 @@
   "identifier": "com.compresso.app",
   "build": {
     "beforeBuildCommand": "pnpm vite:build",
-    "frontendDist": "../dist-tauri",
+    "frontendDist": "../dist",
     "devUrl": "http://localhost:3001"
   },
   "bundle": {
