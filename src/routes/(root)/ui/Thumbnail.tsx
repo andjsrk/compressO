@@ -77,11 +77,7 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
 
     setIsCopyingFrame(true)
     try {
-      const currentTime = playerRef.current.playerRef?.getCurrentTime?.()
-      if (!currentTime) {
-        toast.error('Unable to get current time')
-        return
-      }
+      const currentTime = playerRef.current.playerRef?.getCurrentTime?.() ?? 0
 
       const targetDuration =
         currentTime >= videoDuration
