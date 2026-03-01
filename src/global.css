@@ -151,3 +151,12 @@ body > * {
 .timeline-editor-cursor {
   border-color: theme("colors.white1") !important;
 }
+
+.timeline-editor :hover::-webkit-scrollbar:horizontal {
+  height: 10px !important;
+}
+
+.timeline-editor :hover::-webkit-scrollbar-thumb:horizontal {
+  background: #555151 !important;
+  border-radius: 5px !important;
+}

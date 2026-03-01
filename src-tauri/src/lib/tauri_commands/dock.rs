@@ -6,6 +6,7 @@ use cocoa::appkit::NSApp;
 use cocoa::base::nil;
 #[cfg(target_os = "macos")]
 use cocoa::foundation::NSString as cocoa_NSString;
+#[cfg(target_os = "macos")]
 use objc::{msg_send, sel, sel_impl};
 
 /// Sets the macOS dock badge to show compression progress
