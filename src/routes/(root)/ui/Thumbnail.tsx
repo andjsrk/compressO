@@ -330,13 +330,8 @@ function VideoThumbnail({ videoIndex }: VideoThumbnailProps) {
                 refreshTimeline()
               }
             }}
-            onSpaceKeydownForPlayPause={() => {
-              if (playerRef.current) {
-                const playbackState = playerRef.current.getPlaybackState()
-                if (playbackState === 'paused') {
-                  autoScrollCursorToCurrentTime(scales, true)
-                }
-              }
+            onPlay={() => {
+              autoScrollCursorToCurrentTime(scales, true)
             }}
             onArrowKeySeek={() => {
               autoScrollCursorToCurrentTime(scales, true)

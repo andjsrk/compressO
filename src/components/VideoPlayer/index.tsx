@@ -156,11 +156,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
         if (e.code === 'Space' && !isInputField) {
           e.preventDefault()
-          const playState = togglePlayPause()
+          togglePlayPause()
           onSpaceKeydownForPlayPause?.()
-          if (playState === 'playing') {
-            autoScrollCursorToCurrentTime(scales, true)
-          }
         } else if (e.code === 'ArrowRight' && !isInputField) {
           e.preventDefault()
           if (playerRef.current && duration) {
@@ -287,9 +284,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         playerRef.current
       ) {
         setTimelineTime(playerRef.current.getCurrentTime())
-        autoScrollCursorToCurrentTime(scales, true)
       }
-    }, [enableTimelinePlayer, setTimelineTime, autoScrollCursorToCurrentTime])
+    }, [enableTimelinePlayer, setTimelineTime])
 
     useEffect(() => {
       if (playerRef.current) {
@@ -338,12 +334,13 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             height="100%"
             playing={isPlaying}
             onPlay={() => {
-              onPlay?.()
               setIsPlaying(true)
+              onPlay?.()
+              autoScrollCursorToCurrentTime(scales, true)
             }}
             onPause={() => {
-              onPause?.()
               setIsPlaying(false)
+              onPause?.()
             }}
             onEnded={() => {
               onEnded?.()
