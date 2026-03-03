@@ -165,25 +165,29 @@ body > * {
 }
 
 .timeline-editor-edit-area
-  .ReactVirtualized__Grid::-webkit-scrollbar-corner:horizontal {
-  @apply bg-zinc-100 dark:bg-zinc-900 !important;
-}
-
-.timeline-editor-edit-area
   .ReactVirtualized__Grid::-webkit-scrollbar:horizontal {
   height: 8px !important;
-}
-.timeline-editor-edit-area
-  .ReactVirtualized__Grid::-webkit-scrollbar-track:horizontal {
-  @apply bg-zinc-100 dark:bg-zinc-900 !important;
+  opacity: 0.8 !important;
+  @apply opacity-80 dark:opacity-60 !important;
 }
 
 .timeline-editor-edit-area
   .ReactVirtualized__Grid::-webkit-scrollbar-thumb:horizontal {
-  width: 50px !important;
+  min-width: 50px !important;
   -webkit-border-radius: 10px !important;
   border-radius: 10px !important;
   -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3) !important;
   box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3) !important;
-  @apply bg-zinc-400 dark:bg-zinc-700;
+  @apply bg-zinc-700 !important;
+  @apply opacity-80 dark:opacity-60;
+}
+
+.timeline-editor-edit-area
+  .ReactVirtualized__Grid::-webkit-scrollbar:horizontal:hover {
+  @apply opacity-100 !important;
+}
+
+.timeline-editor-edit-area
+  .ReactVirtualized__Grid::-webkit-scrollbar-thumb:horizontal:hover {
+  @apply opacity-100 !important;
 }
