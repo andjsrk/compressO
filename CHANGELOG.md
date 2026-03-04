@@ -1,5 +1,21 @@
 # Changelog
 
+### 2.1.0
+
+Features:
+- Subtitle Upload: You can now upload single or multiple subtitle and embed in the final output video. You can upload subtitles from `Others` tab.
+- Download Embedded Subtitle from the video: You can also download the embedded subtitles of the video in SRT or VTT format. You can download these subtitles from `Subtitles` tab of the full video info overlay.
+- Theme Color: You can customize the color of the app to your liking. The selected color will be applied to everywhere on the app.
+- Audio Amplification: You can now amplify the volume upto 200% of the original audio.
+- Capture Current Frame: You can now capture the current frame from the video player and copy it to the clipboard. Just right click on the video player and the context menu will show up to do so.
+- Progress % in Dock: MacOS dock icon now shows progress % during processing.
+
+Enhancements:
+- Light Mode for Timeline Bar: Video player timeline and trimmer timeline gets light theme mode support.
+- Timeline Performance Improvements: Timeline performance has been heavily improved. Earlier it used to show blank spaces due to constant auto-scroll update during video play progress but now it has been updated to only scroll when the cursor goes out of view.
+- Metadata improvements: Metadata inputs are now controlled to sync the value properly during batch videos and single video mode. 
+
+
 ### 2.0.0
 
 Features:
