@@ -411,15 +411,14 @@ hr {
 .feature-card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
   padding: 40px;
   transition: all 0.3s ease;
+  transform: skew(-3deg);
 }
 
 .feature-card:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(203, 234, 102, 0.3);
-  transform: translateY(-4px);
 }
 
 .feature-icon {
