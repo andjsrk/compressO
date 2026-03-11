@@ -1,9 +1,9 @@
 import { core } from '@tauri-apps/api'
 
 export interface UpdateInfo {
-  available: boolean
-  current_version: string
-  latest_version: string | null
+  isUpdateAvailable: boolean
+  currentVersion: string
+  latestVersion: string | null
   body: string | null
   date: string | null
 }

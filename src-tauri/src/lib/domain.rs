@@ -335,3 +335,13 @@ pub struct ContainerInfo {
     pub nb_streams: u32,
     pub tags: Option<Vec<(String, String)>>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    pub is_update_available: bool,
+    pub current_version: String,
+    pub latest_version: Option<String>,
+    pub body: Option<String>,
+    pub date: Option<String>,
+}

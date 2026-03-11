@@ -77,6 +77,7 @@ function ColorPicker() {
           <Button
             isIconOnly
             size="sm"
+            variant="light"
             onPress={() => {
               setColor(DEFAULT_PRIMARY_COLOR)
             }}
@@ -88,7 +89,7 @@ function ColorPicker() {
       <Popover placement="bottom" showArrow>
         <PopoverTrigger>
           <div
-            className="w-7 h-7 rounded-xl cursor-pointer border-2 border-zinc-200 dark:border-zinc-700 shadow-sm"
+            className="w-8 h-8 rounded-xl cursor-pointer border-2 border-zinc-200 dark:border-zinc-700 shadow-sm"
             style={{ backgroundColor: `rgb(${color})` }}
           />
         </PopoverTrigger>

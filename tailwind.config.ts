@@ -1,4 +1,5 @@
 import { heroui } from '@heroui/react'
+import typography from '@tailwindcss/typography'
 import type { Config } from 'tailwindcss'
 
 const WIDTHS = Object.freeze({
@@ -29,6 +30,7 @@ const config: Config = {
     heroui({
       addCommonColors: true,
     }),
+    typography,
   ],
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',

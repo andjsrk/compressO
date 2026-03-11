@@ -1,33 +1,38 @@
 import { DropdownItem, useDisclosure } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useSnapshot } from 'valtio'
 import React from 'react'
+import { useSnapshot } from 'valtio'
 
+import Badge from '@/components/Badge'
 import Button from '@/components/Button'
 import ColorPicker from '@/components/ColorPicker'
 import Divider from '@/components/Divider'
 import Dropdown, { DropdownMenu, DropdownTrigger } from '@/components/Dropdown'
 import Icon from '@/components/Icon'
+import Markdown from '@/components/Markdown'
 import Modal, { ModalContent } from '@/components/Modal'
+import ScrollShadow from '@/components/ScrollShadow'
 import ThemeSwitcher from '@/components/ThemeSwitcher'
 import Title from '@/components/Title'
 import { toast } from '@/components/Toast'
 import Tooltip from '@/components/Tooltip'
-import { deleteCache as invokeDeleteCache } from '@/tauri/commands/fs'
 import { updateStore } from '@/stores/updateStore'
+import { deleteCache as invokeDeleteCache } from '@/tauri/commands/fs'
 import About from './About'
 
 type DropdownKey = 'settings' | 'about' | 'update'
 
 function Setting() {
   const modalDisclosure = useDisclosure()
-  const { available, latestVersion } = useSnapshot(updateStore)
+  const { isUpdateAvailable, latestVersion } = useSnapshot(updateStore)
 
   const [selectedKey, setSelectedKey] = React.useState<DropdownKey>('settings')
   const handleDropdownAction = (item: string | number) => {
     modalDisclosure.onOpen()
     setSelectedKey(item as DropdownKey)
   }
+
+  const hasNewVersion = isUpdateAvailable && latestVersion
 
   return (
     <>
@@ -40,7 +45,15 @@ function Setting() {
                 aria-label="Open Settings"
                 placement="right"
               >
-                <Icon name="setting" size={23} />
+                <Badge
+                  color="primary"
+                  content=""
+                  placement="bottom-right"
+                  shape="circle"
+                  isInvisible={!hasNewVersion}
+                >
+                  <Icon name="setting" size={23} />
+                </Badge>
               </Tooltip>
             </Button>
           </DropdownTrigger>
@@ -49,21 +62,21 @@ function Setting() {
             aria-label="Dropdown menu with description"
             onAction={handleDropdownAction}
           >
-            {available && latestVersion ? (
-              <DropdownItem
-                key="update"
-                className="text-primary dark:text-primary-400"
-                startContent={<Icon name="download" />}
-              >
-                Update to {latestVersion}
-              </DropdownItem>
-            ) : null}
             <DropdownItem key="settings" startContent={<Icon name="setting" />}>
               Settings
             </DropdownItem>
             <DropdownItem key="about" startContent={<Icon name="info" />}>
               About
             </DropdownItem>
+            {hasNewVersion ? (
+              <DropdownItem
+                key="update"
+                className="text-primary"
+                startContent={<Icon name="download" />}
+              >
+                Update to {latestVersion}
+              </DropdownItem>
+            ) : null}
           </DropdownMenu>
         </Dropdown>
       </div>
@@ -94,7 +107,7 @@ function AppSetting() {
     setIsCacheDeleting(true)
     try {
       await invokeDeleteCache()
-      toast.success('All cache were cleared.')
+      toast.success('All cache was cleared.')
       setConfirmClearCache(false)
     } catch (_) {
       toast.error('There was a problem clearing cache.')
@@ -180,8 +193,14 @@ interface UpdateModalProps {
 }
 
 function UpdateModal({ onClose }: UpdateModalProps) {
-  const { available, latestVersion, currentVersion, body, isInstalling } =
-    useSnapshot(updateStore)
+  const {
+    isUpdateAvailable,
+    latestVersion,
+    currentVersion,
+    body,
+    isInstalling,
+    installProgress,
+  } = useSnapshot(updateStore)
 
   const handleInstall = async () => {
     try {
@@ -194,53 +213,53 @@ function UpdateModal({ onClose }: UpdateModalProps) {
   }
 
   return (
-    <div className="w-full py-12 pb-16 px-8">
+    <div className="w-full py-10 pb-4 px-8">
       <section className="mb-6">
         <Title title="Update Available" iconProps={{ name: 'download' }} />
       </section>
-      <div className="mx-auto bg-zinc-100 dark:bg-zinc-800 rounded-lg px-4 py-4 overflow-hidden">
-        {available && latestVersion ? (
+      <div>
+        {isUpdateAvailable && latestVersion ? (
           <>
             <div className="flex justify-between items-center mb-4">
               <div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                <p className="text-gray-600 dark:text-gray-400 text-xs">
                   Current Version
                 </p>
-                <p className="font-semibold text-lg">{currentVersion}</p>
+                <p className="font-bold text-sm">{currentVersion}</p>
               </div>
               <div className="text-right">
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                <p className="text-gray-600 dark:text-gray-400 text-xs">
                   Latest Version
                 </p>
-                <p className="font-semibold text-lg text-primary dark:text-primary-400">
+                <p className="font-bold text-sm text-primary">
                   {latestVersion}
                 </p>
               </div>
             </div>
-            <Divider className="my-2 dark:bg-zinc-700" />
+            <Divider className="my-2" />
             {body && (
               <div className="mt-4">
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
-                  What's New
-                </p>
-                <div
-                  className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-line max-h-40 overflow-y-auto"
-                  dangerouslySetInnerHTML={{ __html: body }}
-                />
+                <p className="text-primary text-sm mb-2">What's New?</p>
+                <ScrollShadow className="max-h-[50vh]">
+                  <Markdown content={body} className="text-sm" />
+                </ScrollShadow>
               </div>
             )}
-            <Divider className="my-2 dark:bg-zinc-700" />
+            <Divider className="my-2 mt-4" />
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="flat" size="sm" onPress={onClose}>
-                Cancel
-              </Button>
+              {!isInstalling ? (
+                <Button variant="flat" size="sm" onPress={onClose}>
+                  Cancel
+                </Button>
+              ) : null}
               <Button
-                color="primary"
                 size="sm"
+                className="bg-primary"
                 onPress={handleInstall}
                 isLoading={isInstalling}
+                isDisabled={isInstalling}
               >
-                Update Now
+                Update Now {isInstalling ? `(${installProgress}%)` : ''}
               </Button>
             </div>
           </>

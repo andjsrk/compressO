@@ -78,6 +78,10 @@ pre {
   cursor: inherit;
 }
 
+a {
+  color: theme("colors.primary");
+}
+
 body > * {
   cursor: default;
 }

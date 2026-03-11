@@ -1,6 +1,6 @@
 {
   "name": "compresso",
-  "version": "2.2.1",
+  "version": "2.1.0",
   "private": true,
   "author": {
     "name": "Code For Real",
@@ -48,7 +48,9 @@
     "react-advanced-cropper": "^0.20.1",
     "react-colorful": "^5.6.1",
     "react-dom": "^18",
+    "react-markdown": "^10.1.0",
     "react-player": "^2.16.0",
+    "remark-gfm": "^4.0.1",
     "sonner": "^1.4.41",
     "tailwind-merge": "^1.14.0",
     "valtio": "^1.13.2",
@@ -56,6 +58,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.2",
+    "@tailwindcss/typography": "^0.5.19",
     "@tanstack/router-plugin": "^1.97.22",
     "@tauri-apps/cli": "^2.9.2",
     "@types/lodash": "^4.17.4",

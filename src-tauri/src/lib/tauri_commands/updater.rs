@@ -1,15 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use tauri::Emitter;
 
-#[derive(Serialize, Deserialize)]
-pub struct UpdateInfo {
-    pub available: bool,
-    pub current_version: String,
-    pub latest_version: Option<String>,
-    pub body: Option<String>,
-    pub date: Option<String>,
-}
+use crate::domain::UpdateInfo;
 
 #[tauri::command]
 pub async fn check_update(app_handle: tauri::AppHandle) -> Result<UpdateInfo, String> {
@@ -19,13 +11,14 @@ pub async fn check_update(app_handle: tauri::AppHandle) -> Result<UpdateInfo, St
         .updater()
         .map_err(|e| format!("Failed to get updater: {}", e))?;
 
+    let current_version = app_handle.package_info().version.to_string();
+
     let response = match updater.check().await {
         Ok(Some(response)) => response,
         Ok(None) => {
-            // No update available
             return Ok(UpdateInfo {
-                available: false,
-                current_version: env!("CARGO_PKG_VERSION").to_string(),
+                is_update_available: false,
+                current_version: current_version,
                 latest_version: None,
                 body: None,
                 date: None,
@@ -34,12 +27,11 @@ pub async fn check_update(app_handle: tauri::AppHandle) -> Result<UpdateInfo, St
         Err(e) => return Err(format!("Failed to check for updates: {}", e)),
     };
 
-    // Convert OffsetDateTime to String
     let date_str = response.date.map(|d| d.to_string());
 
     Ok(UpdateInfo {
-        available: true,
-        current_version: env!("CARGO_PKG_VERSION").to_string(),
+        is_update_available: true,
+        current_version: current_version,
         latest_version: Some(response.version.clone()),
         body: Some(response.body.clone().unwrap_or_default()),
         date: date_str,
@@ -61,26 +53,32 @@ pub async fn install_update(app_handle: tauri::AppHandle) -> Result<String, Stri
         .ok_or("No update available")?;
 
     let downloaded = AtomicUsize::new(0);
-
-    // Start download with progress callback and download finish callback
-    // The download method returns Vec<u8> directly
+    let total_size = AtomicU64::new(0);
+    log::info!("Downloading new update");
     let _bytes = response
         .download(
-            &|chunk_length, _content_length| {
+            &|chunk_length, content_length| {
                 let prev = downloaded.fetch_add(chunk_length, Ordering::SeqCst);
-                log::info!("Update downloaded {} bytes", prev + chunk_length);
+
+                if total_size.load(Ordering::SeqCst) == 0 {
+                    if let Some(len) = content_length {
+                        total_size.store(len, Ordering::SeqCst);
+                    }
+                }
+
+                let total = total_size.load(Ordering::SeqCst);
+                if total > 0 {
+                    let progress = ((prev as f64 / total as f64) * 100.0) as u32;
+                    let _ = app_handle.emit("update-event", progress.to_string());
+                }
             },
             &|| {
                 log::info!("Update download completed");
+                let _ = app_handle.emit("update-event", "100");
             },
         )
         .await
         .map_err(|e| format!("Failed to download update: {}", e))?;
-
-    // The tauri_plugin_updater library handles the installation automatically
-    // We just need to trigger the download and it will install and restart
-    // For now, we'll emit an event indicating the download is complete
-    let _ = app_handle.emit("update-event", "Download complete");
 
     Ok("Update download completed. The app will restart automatically.".to_string())
 }

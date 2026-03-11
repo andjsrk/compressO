@@ -11,7 +11,10 @@ function Divider(props: DividerProps) {
   return (
     <NextUIDivider
       {...props}
-      className={cn(['bg-zinc-200 dark:bg-zinc-800', props?.className ?? ''])}
+      className={cn([
+        'bg-zinc-400/30 dark:bg-zinc-700/50',
+        props?.className ?? '',
+      ])}
     />
   )
 }
