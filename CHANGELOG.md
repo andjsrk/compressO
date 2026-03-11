@@ -1,6 +1,6 @@
 # Changelog
 
-### 2.2.1
+### 2.1.1
 Enhancements:
 - Make configuration settings label font weight bold for better visibility [5fcb190](https://github.com/codeforreal1/compressO/commit/5fcb1903c1f119d55fd54a2ddc43863dafd79f08)
 
