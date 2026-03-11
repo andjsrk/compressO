@@ -1,5 +1,6 @@
 import { DropdownItem, useDisclosure } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useSnapshot } from 'valtio'
 import React from 'react'
 
 import Button from '@/components/Button'
@@ -13,12 +14,14 @@ import Title from '@/components/Title'
 import { toast } from '@/components/Toast'
 import Tooltip from '@/components/Tooltip'
 import { deleteCache as invokeDeleteCache } from '@/tauri/commands/fs'
+import { updateStore } from '@/stores/updateStore'
 import About from './About'
 
-type DropdownKey = 'settings' | 'about'
+type DropdownKey = 'settings' | 'about' | 'update'
 
 function Setting() {
   const modalDisclosure = useDisclosure()
+  const { available, latestVersion } = useSnapshot(updateStore)
 
   const [selectedKey, setSelectedKey] = React.useState<DropdownKey>('settings')
   const handleDropdownAction = (item: string | number) => {
@@ -46,6 +49,15 @@ function Setting() {
             aria-label="Dropdown menu with description"
             onAction={handleDropdownAction}
           >
+            {available && latestVersion ? (
+              <DropdownItem
+                key="update"
+                className="text-primary dark:text-primary-400"
+                startContent={<Icon name="download" />}
+              >
+                Update to {latestVersion}
+              </DropdownItem>
+            ) : null}
             <DropdownItem key="settings" startContent={<Icon name="setting" />}>
               Settings
             </DropdownItem>
@@ -61,7 +73,13 @@ function Setting() {
         motionVariant="bottomToTop"
       >
         <ModalContent className="max-w-[30rem] pb-2 overflow-hidden rounded-2xl">
-          {selectedKey === 'settings' ? <AppSetting /> : <About />}
+          {selectedKey === 'settings' ? (
+            <AppSetting />
+          ) : selectedKey === 'update' ? (
+            <UpdateModal onClose={modalDisclosure.onClose} />
+          ) : (
+            <About />
+          )}
         </ModalContent>
       </Modal>
     </>
@@ -152,6 +170,87 @@ function AppSetting() {
             </div>
           </Tooltip>
         </div>
+      </div>
+    </div>
+  )
+}
+
+interface UpdateModalProps {
+  onClose: () => void
+}
+
+function UpdateModal({ onClose }: UpdateModalProps) {
+  const { available, latestVersion, currentVersion, body, isInstalling } =
+    useSnapshot(updateStore)
+
+  const handleInstall = async () => {
+    try {
+      const { installUpdateApp } = await import('@/stores/updateStore')
+      await installUpdateApp()
+      onClose()
+    } catch {
+      toast.error('Failed to install update. Please try again.')
+    }
+  }
+
+  return (
+    <div className="w-full py-12 pb-16 px-8">
+      <section className="mb-6">
+        <Title title="Update Available" iconProps={{ name: 'download' }} />
+      </section>
+      <div className="mx-auto bg-zinc-100 dark:bg-zinc-800 rounded-lg px-4 py-4 overflow-hidden">
+        {available && latestVersion ? (
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  Current Version
+                </p>
+                <p className="font-semibold text-lg">{currentVersion}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  Latest Version
+                </p>
+                <p className="font-semibold text-lg text-primary dark:text-primary-400">
+                  {latestVersion}
+                </p>
+              </div>
+            </div>
+            <Divider className="my-2 dark:bg-zinc-700" />
+            {body && (
+              <div className="mt-4">
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
+                  What's New
+                </p>
+                <div
+                  className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-line max-h-40 overflow-y-auto"
+                  dangerouslySetInnerHTML={{ __html: body }}
+                />
+              </div>
+            )}
+            <Divider className="my-2 dark:bg-zinc-700" />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="flat" size="sm" onPress={onClose}>
+                Cancel
+              </Button>
+              <Button
+                color="primary"
+                size="sm"
+                onPress={handleInstall}
+                isLoading={isInstalling}
+              >
+                Update Now
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              No updates available. You are on the latest version.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

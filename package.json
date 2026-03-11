@@ -1,6 +1,6 @@
 {
   "name": "compresso",
-  "version": "2.1.1",
+  "version": "2.2.1",
   "private": true,
   "author": {
     "name": "Code For Real",
@@ -19,6 +19,7 @@
     "tauri:build:mac:arm64": "tauri build --target aarch64-apple-darwin",
     "tauri:build:mac:x64": "tauri build --target x86_64-apple-darwin",
     "tauri:build:mac": "pnpm tauri:build:mac:arm64 && pnpm tauri:build:mac:x64",
+    "generate:latest-json": "node scripts/generate-latest-json.mjs",
     "homebrew:release": "./scripts/homebrew-release.sh",
     "pnpm:devPreinstall": "fnm use",
     "postinstall": "husky install",
@@ -36,6 +37,7 @@
     "@tauri-apps/plugin-fs": "2.0.0",
     "@tauri-apps/plugin-os": "2.0.0",
     "@tauri-apps/plugin-shell": "2.0.0",
+    "@tauri-apps/plugin-updater": "2.0.0",
     "@xzdarcy/react-timeline-editor": "^0.1.9",
     "@xzdarcy/timeline-engine": "^1.0.0",
     "clsx": "^2.0.0",

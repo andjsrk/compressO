@@ -70,7 +70,16 @@
       }
     }
   },
-  "plugins": {},
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/codeforreal1/compressO/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhBMkNCQjYzRDg3Mjk3MzUKUldSU0RMRmZVRU5aRm5aR3E4cE9GWFZ5akVhN0xjQkVJZ1pMSmxoNmxpNlE2QjFyWlVnT2N2cHJXaHkK"
+    }
+  },
   "app": {
     "windows": [
       {

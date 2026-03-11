@@ -29,6 +29,7 @@ use lib::tauri_commands::{
         delete_cache, delete_file, get_file_metadata, get_image_dimension, move_file,
         read_files_from_clipboard, read_files_from_paths,
     },
+    updater::{__cmd__check_update, __cmd__install_update, check_update, install_update},
 };
 
 #[cfg(target_os = "linux")]
@@ -166,6 +167,7 @@ async fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             app.manage(PendingFiles::new());
             app.manage(FrontendReady::new());
@@ -268,6 +270,8 @@ async fn main() {
             get_video_streams,
             set_dock_progress,
             clear_dock_badge,
+            check_update,
+            install_update,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
