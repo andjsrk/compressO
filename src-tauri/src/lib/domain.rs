@@ -360,7 +360,6 @@ pub struct ImageCompressionResult {
     pub file_metadata: Option<FileMetadata>,
     pub original_size: u64,
     pub compressed_size: u64,
-    pub compression_ratio: f32, // TODO: What is this?
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

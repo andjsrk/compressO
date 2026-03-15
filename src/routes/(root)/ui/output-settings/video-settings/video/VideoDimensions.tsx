@@ -189,7 +189,7 @@ function VideoDimensions({ mediaIndex }: VideoDimensionsProps) {
         }}
         isDisabled={shouldDisableInput}
       >
-        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full font-bold">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           Dimensions
         </p>
       </Switch>

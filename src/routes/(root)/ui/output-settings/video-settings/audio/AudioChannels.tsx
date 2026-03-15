@@ -8,7 +8,7 @@ import Divider from '@/components/Divider'
 import Select from '@/components/Select'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 type AudioChannelsProps = {
   mediaIndex: number
@@ -68,7 +68,7 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
         } else {
           commonConfig.audioConfig.audioChannelConfig = null
         }
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex, shouldEnableCustomChannel])
@@ -122,7 +122,7 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
                 stereoSwapChannels: false,
               }
           }
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -173,7 +173,7 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
           }
           appProxy.state.commonConfigForBatchCompression.videoConfig.audioConfig
             .audioChannelConfig!.monoSource!.left = isSelected
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -225,7 +225,7 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
           }
           appProxy.state.commonConfigForBatchCompression.videoConfig.audioConfig
             .audioChannelConfig!.monoSource!.right = isSelected
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -270,7 +270,7 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
         }
         appProxy.state.commonConfigForBatchCompression.videoConfig.audioConfig
           .audioChannelConfig!.stereoSwapChannels = newValue
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex])
@@ -291,7 +291,7 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
         onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput || hasNoAudio}
       >
-        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full font-bold">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           Channels
         </p>
       </Switch>

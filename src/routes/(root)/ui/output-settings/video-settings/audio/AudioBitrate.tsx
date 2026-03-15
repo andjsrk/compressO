@@ -6,7 +6,7 @@ import { useSnapshot } from 'valtio'
 import Select from '@/components/Select'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 const AUDIO_BITRATES = [
   { value: 64, label: '64 kbps' },
@@ -72,7 +72,7 @@ function AudioBitrate({ mediaIndex }: AudioBitrateProps) {
         } else {
           commonConfig.audioConfig.bitrate = null
         }
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex, shouldEnableCustomBitrate])
@@ -104,7 +104,7 @@ function AudioBitrate({ mediaIndex }: AudioBitrateProps) {
           }
           appProxy.state.commonConfigForBatchCompression.videoConfig.audioConfig.bitrate =
             bitrate
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -128,7 +128,7 @@ function AudioBitrate({ mediaIndex }: AudioBitrateProps) {
         onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput || hasNoAudio}
       >
-        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full font-bold">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           Bitrate
         </p>
       </Switch>

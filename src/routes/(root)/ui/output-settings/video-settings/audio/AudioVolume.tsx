@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react'
 import { snapshot, useSnapshot } from 'valtio'
 
-import Slider from '@/components/Slider/Slider'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import Slider from '@/components/Slider'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 type AudioVolumeProps = {
   mediaIndex: number
@@ -75,7 +75,7 @@ function AudioVolume({ mediaIndex }: AudioVolumeProps) {
             }
             appProxy.state.commonConfigForBatchCompression.videoConfig.audioConfig.volume =
               volume
-            normalizeBatchVideosConfig()
+            normalizeBatchMediaConfig()
           }
         }
       }, 500)

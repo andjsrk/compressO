@@ -14,7 +14,7 @@ import {
   slideDownStaggerAnimation,
   slideDownTransition,
 } from '@/utils/animation'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 type SubtitlesProps = {
   mediaIndex: number
@@ -104,7 +104,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
             appProxy.state.commonConfigForBatchCompression.videoConfig
               .subtitlesConfig!.shouldEnableSubtitles = isSelected
           }
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -145,7 +145,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
             appProxy.state.commonConfigForBatchCompression.videoConfig
               .subtitlesConfig!.preserveExistingSubtitles = isSelected
           }
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -204,7 +204,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
             appProxy.state.commonConfigForBatchCompression.videoConfig.subtitlesConfig!.subtitles.push(
               newSubtitle,
             )
-            normalizeBatchVideosConfig()
+            normalizeBatchMediaConfig()
           }
         }
       }
@@ -236,7 +236,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
               index,
               1,
             )
-            normalizeBatchVideosConfig()
+            normalizeBatchMediaConfig()
           }
         }
       }
@@ -266,7 +266,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
           ) {
             appProxy.state.commonConfigForBatchCompression.videoConfig
               .subtitlesConfig!.subtitles[index].language = languageValue
-            normalizeBatchVideosConfig()
+            normalizeBatchMediaConfig()
           }
         }
       }
@@ -290,7 +290,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
             size="sm"
           >
             <div className="flex justify-center items-center">
-              <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm font-bold">
+              <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
                 Subtitles
               </span>
             </div>

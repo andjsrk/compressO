@@ -7,11 +7,13 @@ import { snapshot, useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
 import Icon from '@/components/Icon'
-import { compressVideos } from '@/tauri/commands/ffmpeg'
+import { compressMediaBatch } from '@/tauri/commands/media'
 import { VideoMetadataConfig } from '@/types/app'
 import {
   CompressionResult,
+  ImageCompressionConfig,
   TrimSegment,
+  VideoCompressionConfig,
   VideoTransformsHistory,
 } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
@@ -68,104 +70,132 @@ function StartCompression() {
       const batchId = `${+new Date()}`
       appProxy.state.batchId = batchId
 
-      const { results } = await compressVideos(
+      const { results } = await compressMediaBatch(
         batchId,
-        appSnapshot.state.media
-          .filter((m) => m.type === 'video') // TODO: Adjust when for images
-          .map((v) => ({
-            videoId: v.id!,
-            videoPath: v.pathRaw!,
-            convertToExtension: v.config?.convertToExtension ?? 'mp4',
-            presetName: !v.config?.shouldDisableCompression
-              ? v.config.presetName
-              : null,
-            audioConfig: {
-              volume: v.config?.audioConfig?.volume ?? 100,
-              audioChannelConfig:
-                (v.config?.audioConfig?.volume ?? 100) !== 0
-                  ? (v.config?.audioConfig?.audioChannelConfig ?? null)
-                  : null,
-              bitrate:
-                (v.config?.audioConfig?.volume ?? 100) !== 0
-                  ? (v.config?.audioConfig?.bitrate ?? null)
-                  : null,
-              audioCodec: v.config?.shouldEnableCustomAudioCodec
-                ? (v.config?.customAudioCodec ?? null)
-                : null,
-              selectedAudioTracks:
-                v.config?.shouldEnableAudioTrackSelection &&
-                (v.config?.audioConfig?.volume ?? 100) !== 0
-                  ? (v.config?.selectedAudioTracks ?? null)
-                  : null,
-            },
-            quality: v.config?.shouldEnableQuality
-              ? (v.config?.quality as number)
-              : 101,
-            dimensions:
-              v.config?.shouldEnableCustomDimensions &&
-              v.config.customDimensions
-                ? ([
-                    Math.round(v.config.customDimensions[0]),
-                    Math.round(v.config.customDimensions[1]),
-                  ] as [number, number])
-                : null,
-            fps: v.config?.shouldEnableCustomFPS
-              ? v.config.customFPS?.toString?.()
-              : null,
-            videoCodec: v.config?.shouldEnableCustomVideoCodec
-              ? v.config.customVideoCodec
-              : null,
-            transformsHistory: v.config?.shouldTransformVideo
-              ? ((v.config.transformVideoConfig?.transformsHistory ??
-                  []) as VideoTransformsHistory[])
-              : null,
-            metadataConfig:
-              !v.config?.shouldPreserveMetadata && v.config?.metadataConfig
-                ? Object.entries(
-                    v.config?.metadataConfig as VideoMetadataConfig,
-                  ).reduce(
-                    (a, [key, value]: [string, any]) => {
-                      a[key] = value?.length > 0 ? value : null
-                      return a
-                    },
-                    {} as Record<string, string>,
-                  )
-                : null,
-            customThumbnailPath:
-              v.config?.shouldEnableCustomThumbnail &&
-              v.config?.customThumbnailPath?.length
-                ? v.config.customThumbnailPath
-                : null,
-            trimSegments:
-              v.config?.shouldTrimVideo && Array.isArray(v.config?.trimConfig)
-                ? (v.config.trimConfig
-                    .filter((a) => a.end >= a.start)
-                    .map(
-                      (action: TimelineAction): TrimSegment => ({
-                        start: action.start,
-                        end: action.end,
-                      }),
-                    ) as TrimSegment[])
-                : null,
-            subtitlesConfig:
-              v.config?.convertToExtension !== 'webm' &&
-              ((v.config?.subtitlesConfig?.shouldEnableSubtitles &&
-                v.config?.subtitlesConfig?.subtitles?.length > 0) ||
-                v.config?.subtitlesConfig?.preserveExistingSubtitles === true)
-                ? {
-                    subtitles:
-                      v.config.subtitlesConfig?.subtitles?.map((s) => ({
-                        subtitlePath: s.subtitlePath ?? null,
-                        language: s.language || 'eng',
-                        fileName: s.fileName ?? null,
-                      })) ?? [],
-                    shouldEnableSubtitles:
-                      v.config.subtitlesConfig.shouldEnableSubtitles ?? false,
-                    preserveExistingSubtitles:
-                      v.config.subtitlesConfig.preserveExistingSubtitles,
-                  }
-                : null,
-          })),
+        appSnapshot.state.media.map((v) => ({
+          videoConfig:
+            v.type === 'video'
+              ? ({
+                  videoId: v.id!,
+                  videoPath: v.pathRaw!,
+                  convertToExtension: (v.config?.convertToExtension === '-'
+                    ? v.extension
+                    : v.config.convertToExtension)!,
+                  presetName: !v.config?.shouldDisableCompression
+                    ? v.config.presetName
+                    : null,
+                  audioConfig: {
+                    volume: v.config?.audioConfig?.volume ?? 100,
+                    audioChannelConfig:
+                      (v.config?.audioConfig?.volume ?? 100) !== 0
+                        ? (v.config?.audioConfig?.audioChannelConfig ?? null)
+                        : null,
+                    bitrate:
+                      (v.config?.audioConfig?.volume ?? 100) !== 0
+                        ? (v.config?.audioConfig?.bitrate ?? null)
+                        : null,
+                    audioCodec:
+                      v.config?.shouldEnableCustomAudioCodec &&
+                      v.config.audioConfig?.audioCodec !== '-'
+                        ? (v.config?.audioConfig?.audioCodec ?? null)
+                        : null,
+                    selectedAudioTracks:
+                      v.config?.shouldEnableAudioTrackSelection &&
+                      (v.config?.audioConfig?.volume ?? 100) !== 0
+                        ? (v.config?.selectedAudioTracks ?? null)
+                        : null,
+                  },
+                  quality: v.config?.shouldEnableQuality
+                    ? (v.config?.quality as number)
+                    : 101,
+                  dimensions:
+                    v.config?.shouldEnableCustomDimensions &&
+                    v.config.customDimensions
+                      ? ([
+                          Math.round(v.config.customDimensions[0]),
+                          Math.round(v.config.customDimensions[1]),
+                        ] as [number, number])
+                      : null,
+                  fps: v.config?.shouldEnableCustomFPS
+                    ? v.config.customFPS?.toString?.()
+                    : null,
+                  videoCodec:
+                    v.config?.shouldEnableCustomVideoCodec &&
+                    v.config?.customVideoCodec !== '-'
+                      ? v.config.customVideoCodec
+                      : null,
+                  transformsHistory: v.config?.shouldTransformVideo
+                    ? ((v.config.transformVideoConfig?.transformsHistory ??
+                        []) as VideoTransformsHistory[])
+                    : null,
+                  metadataConfig:
+                    !v.config?.shouldPreserveMetadata &&
+                    v.config?.metadataConfig
+                      ? Object.entries(
+                          v.config?.metadataConfig as VideoMetadataConfig,
+                        ).reduce(
+                          (a, [key, value]: [string, any]) => {
+                            a[key] = value?.length > 0 ? value : null
+                            return a
+                          },
+                          {} as Record<string, string>,
+                        )
+                      : null,
+                  customThumbnailPath:
+                    v.config?.shouldEnableCustomThumbnail &&
+                    v.config?.customThumbnailPath?.length
+                      ? v.config.customThumbnailPath
+                      : null,
+                  trimSegments:
+                    v.config?.shouldTrimVideo &&
+                    Array.isArray(v.config?.trimConfig)
+                      ? (v.config.trimConfig
+                          .filter((a) => a.end >= a.start)
+                          .map(
+                            (action: TimelineAction): TrimSegment => ({
+                              start: action.start,
+                              end: action.end,
+                            }),
+                          ) as TrimSegment[])
+                      : null,
+                  subtitlesConfig:
+                    v.config?.convertToExtension !== 'webm' &&
+                    ((v.config?.subtitlesConfig?.shouldEnableSubtitles &&
+                      v.config?.subtitlesConfig?.subtitles?.length > 0) ||
+                      v.config?.subtitlesConfig?.preserveExistingSubtitles ===
+                        true)
+                      ? {
+                          subtitles:
+                            v.config.subtitlesConfig?.subtitles?.map((s) => ({
+                              subtitlePath: s.subtitlePath ?? null,
+                              language: s.language || 'eng',
+                              fileName: s.fileName ?? null,
+                            })) ?? [],
+                          shouldEnableSubtitles:
+                            v.config.subtitlesConfig.shouldEnableSubtitles ??
+                            false,
+                          preserveExistingSubtitles:
+                            v.config.subtitlesConfig.preserveExistingSubtitles,
+                        }
+                      : null,
+                } satisfies VideoCompressionConfig)
+              : undefined,
+          imageConfig:
+            v.type === 'image'
+              ? ({
+                  imageId: v.id!,
+                  convertToExtension: (v.config.convertToExtension === '-'
+                    ? v.extension
+                    : v.config.convertToExtension)!,
+                  imagePath: v.pathRaw!,
+                  isLossless: v.config.isLossless,
+                  quality: v.config.isLossless
+                    ? 100
+                    : (v.config.quality ?? 100),
+                  stripMetadata: v.config.stripMetadata,
+                } satisfies ImageCompressionConfig)
+              : undefined,
+        })),
       )
       if (Object.keys(results).length === 0) {
         throw new Error()

@@ -120,7 +120,7 @@ export type SubtitleStream = {
   disposition: {
     default: boolean
     forced: boolean
-    attached_pic: boolean
+    attachedPic: boolean
     comment: boolean
     karaoke: boolean
     lyrics: boolean
@@ -209,4 +209,30 @@ export type VideoCompressionConfig = {
   customThumbnailPath?: string | null
   trimSegments?: TrimSegment[] | null
   subtitlesConfig?: SubtitlesConfig | null
+}
+
+export type ImageCompressionProgress = {
+  imageId: string
+  batchId: string
+  fileName: string
+  currentDuration: string
+}
+
+export type ImageCompressionResult = {
+  imageId: string
+  fileName: string
+  filePath: string
+  fileMetadata?: FileMetadata
+  originalSize: number
+  compressedSize: number
+  compressionRatio: number
+}
+
+export type ImageCompressionConfig = {
+  imageId: string
+  imagePath: string
+  convertToExtension: string
+  isLossless: boolean
+  quality: number
+  stripMetadata: boolean
 }

@@ -24,7 +24,7 @@ export const videoMetadataConfigInitialState: VideoMetadataConfig = {
 }
 
 export const videoConfigInitialState: VideoConfig = {
-  convertToExtension: 'mp4',
+  convertToExtension: '-',
   presetName: 'ironclad',
   shouldDisableCompression: false,
   shouldEnableCustomVideoCodec: false,
@@ -34,6 +34,7 @@ export const videoConfigInitialState: VideoConfig = {
   shouldEnableCustomAudioCodec: false,
   audioConfig: {
     volume: 100,
+    audioCodec: '-',
     audioChannelConfig: null,
     bitrate: null,
   },
@@ -55,10 +56,10 @@ export const videoConfigInitialState: VideoConfig = {
 }
 
 export const imageConfigInitialState: ImageConfig = {
-  convertToExtension: 'png',
+  convertToExtension: '-',
   isLossless: false,
+  quality: 50,
   stripMetadata: true,
-  quality: 75,
 }
 
 const appInitialState: App = {
@@ -132,7 +133,7 @@ export const appProxy: AppProxy = proxy({
 /**
  * Normalizes the individual non-dirty media config to match with batch config.
  */
-export function normalizeBatchVideosConfig() {
+export function normalizeBatchMediaConfig() {
   if (appProxy.state.media.length > 1) {
     for (const index in appProxy.state.media) {
       if (!appProxy.state.media[index]?.isConfigDirty) {

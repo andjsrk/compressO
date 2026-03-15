@@ -8,10 +8,13 @@ use crate::fs::get_file_metadata;
 use image::ImageReader;
 use imagequant::{Attributes, Image};
 use log::error;
-use oxipng::{Options, StripChunks};
+use oxipng::{optimize, optimize_from_memory, Deflaters, InFile, Options, OutFile, StripChunks};
+use png::Encoder;
+use rgb::RGBA8;
 use shared_child::SharedChild;
+use std::path::PathBuf;
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     process::{Command, Stdio},
     sync::Arc,
 };
@@ -67,6 +70,10 @@ impl ImageCompressor {
         })
     }
 
+    pub fn get_asset_dir(&self) -> String {
+        self.assets_dir.display().to_string()
+    }
+
     /// Compresses a single image
     pub async fn compress_image(
         &mut self,
@@ -78,6 +85,16 @@ impl ImageCompressor {
         strip_metadata: Option<bool>,
         is_lossless: Option<bool>,
     ) -> Result<ImageCompressionResult, String> {
+        log::info!(
+            "Compressing image: path={}, convert_to={:?}, quality={}, id={}, strip_metadata={:?}, is_lossless={:?}",
+            image_path,
+            convert_to_extension,
+            quality,
+            image_id,
+            strip_metadata,
+            is_lossless
+        );
+
         let original_path = Path::new(image_path);
         if !original_path.exists() {
             return Err(String::from("Image file does not exist."));
@@ -107,21 +124,53 @@ impl ImageCompressor {
         // First, compress the image in its original format
         let temp_output_path = match extension.as_str() {
             "png" => {
-                self.compress_png(image_path, quality, image_id, is_lossless.unwrap_or(true))
-                    .await?
+                self.compress_png(
+                    image_path,
+                    quality,
+                    image_id,
+                    is_lossless.unwrap_or(true),
+                    strip_metadata.unwrap_or_default(),
+                )
+                .await?
             }
             "jpg" | "jpeg" => {
-                self.compress_jpeg(image_path, quality, image_id, is_lossless.unwrap_or(true))
-                    .await?
+                self.compress_jpeg(
+                    image_path,
+                    quality,
+                    image_id,
+                    is_lossless.unwrap_or(true),
+                    strip_metadata.unwrap_or_default(),
+                )
+                .await?
             }
-            "webp" => self.compress_webp(image_path, quality, image_id).await?,
+            "webp" => {
+                self.compress_webp(
+                    image_path,
+                    quality,
+                    image_id,
+                    strip_metadata.unwrap_or_default(),
+                )
+                .await?
+            }
             "gif" => {
-                self.compress_gif(image_path, quality, image_id, is_lossless.unwrap_or(true))
-                    .await?
+                self.compress_gif(
+                    image_path,
+                    quality,
+                    image_id,
+                    is_lossless.unwrap_or(true),
+                    strip_metadata.unwrap_or_default(),
+                )
+                .await?
             }
             "svg" => {
-                self.compress_svg(image_path, quality, image_id, is_lossless.unwrap_or(true))
-                    .await?
+                self.compress_svg(
+                    image_path,
+                    quality,
+                    image_id,
+                    is_lossless.unwrap_or(true),
+                    strip_metadata.unwrap_or_default(),
+                )
+                .await?
             }
             "heic" => {
                 // For these formats, we'll convert them directly to the output format
@@ -162,12 +211,6 @@ impl ImageCompressor {
             get_file_metadata(&final_output_path.to_string_lossy().to_string())?;
         let compressed_size = compressed_metadata.size;
 
-        let compression_ratio = if original_size > 0 {
-            ((original_size - compressed_size) as f32 / original_size as f32) * 100.0
-        } else {
-            0.0
-        };
-
         Ok(ImageCompressionResult {
             image_id: image_id.to_string(),
             file_name: output_filename,
@@ -175,56 +218,34 @@ impl ImageCompressor {
             file_metadata: Some(compressed_metadata),
             original_size,
             compressed_size,
-            compression_ratio,
         })
     }
 
-    /// Compresses a PNG image
-    /// - Lossy: uses imagequant (pngquant) for quantization + compression
-    /// - Lossless: uses oxipng for lossless optimization
     async fn compress_png(
         &mut self,
         image_path: &str,
         quality: u8,
         image_id: &str,
         is_lossless: bool,
+        strip_metadata: bool,
     ) -> Result<PathBuf, String> {
         let output_filename = format!("{}.png", image_id);
         let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
             .iter()
             .collect();
-
-        // Load the image
-        let img = ImageReader::open(image_path)
-            .map_err(|e| e.to_string())?
-            .decode()
-            .map_err(|e| e.to_string())?;
+        let output_path_clone = output_path.clone();
 
         if !is_lossless {
-            // Lossy compression using oxipng with color reduction
-            // Note: PNG is inherently lossless, so "lossy" means reducing colors first
-            let rgba_data = img.to_rgba8();
-            let width = img.width();
-            let height = img.height();
+            let img = ImageReader::open(image_path)
+                .map_err(|e| e.to_string())?
+                .decode()
+                .map_err(|e| e.to_string())?
+                .to_rgba8();
 
-            // Create quantization attributes
-            let mut attrs = Attributes::new();
+            let width = img.width() as usize;
+            let height = img.height() as usize;
 
-            // Set quality (0-100 maps to pngquant's 0-100 scale)
-            // Lower values = more aggressive quantization (smaller files, more artifacts)
-            // Higher values = better quality (larger files, fewer artifacts)
-            let min_quality = (100 - quality).max(0);
-            let target_quality = (100 - quality + 10).min(100);
-            attrs
-                .set_quality(min_quality, target_quality)
-                .map_err(|e| format!("imagequant set_quality error: {:?}", e))?;
-
-            // Set speed (0-10, higher is faster but lower quality)
-            let _ = attrs.set_speed(if quality > 70 { 1 } else { 3 });
-
-            // Create Image from RGBA data - need to convert to Box<[RGBA]>
-            use rgb::RGBA8;
-            let pixels: Vec<RGBA8> = rgba_data
+            let pixels: Vec<RGBA8> = img
                 .as_raw()
                 .chunks_exact(4)
                 .map(|p| RGBA8 {
@@ -235,139 +256,119 @@ impl ImageCompressor {
                 })
                 .collect();
 
-            let mut qimage = Image::new(
-                &attrs,
-                pixels.into_boxed_slice(),
-                width as usize,
-                height as usize,
-                0.0,
-            )
-            .map_err(|e| format!("imagequant Image::new error: {:?}", e))?;
+            let mut attrs = Attributes::new();
 
-            // Quantize the image - returns QuantizationResult
-            let mut quantization_result = attrs
-                .quantize(&mut qimage)
+            attrs.set_quality(0, 100).map_err(|err| err.to_string())?;
+            attrs.set_speed(1).map_err(|err| err.to_string())?;
+
+            attrs.set_max_colors(256).map_err(|err| err.to_string())?;
+
+            let mut q_image = Image::new(&attrs, pixels.into_boxed_slice(), width, height, 0.0)
+                .map_err(|e| format!("imagequant Image::new error: {:?}", e))?;
+
+            let mut quant_result = attrs
+                .quantize(&mut q_image)
                 .map_err(|e| format!("imagequant quantize error: {:?}", e))?;
 
-            // Get the remapped indices and palette
-            let (_palette, indices) = quantization_result
-                .remapped(&mut qimage)
+            let (palette, indices) = quant_result
+                .remapped(&mut q_image)
                 .map_err(|e| format!("imagequant remapped error: {:?}", e))?;
 
-            // Create an indexed image and write with oxipng
-            let palette_vec = quantization_result.palette_vec();
-            let mut options = Options::default();
-            options.deflate = oxipng::Deflaters::Libdeflater { compression: 9 };
-            options.strip = StripChunks::Safe;
-            options.optimize_alpha = true;
+            let mut png_bytes: Vec<u8> = Vec::new();
+            let width: u32 = width.try_into().map_err(|_| "width too large for png")?;
+            let height: u32 = height.try_into().map_err(|_| "height too large for png")?;
+            let palette_bytes: Vec<u8> = palette.iter().flat_map(|c| vec![c.r, c.g, c.b]).collect();
 
-            // Create quantized RGBA buffer for oxipng
-            let quantized_rgba: Vec<u8> = indices
-                .iter()
-                .map(|&idx| {
-                    if let Some(&rgba) = palette_vec.get(idx as usize) {
-                        [rgba.r, rgba.g, rgba.b, rgba.a]
-                    } else {
-                        [0, 0, 0, 255]
-                    }
-                })
-                .flatten()
-                .collect();
+            {
+                let mut encoder = Encoder::new(&mut png_bytes, width, height);
+                encoder.set_color(png::ColorType::Indexed);
+                encoder.set_depth(png::BitDepth::Eight);
+                encoder.set_palette(&palette_bytes);
 
-            match oxipng::optimize_from_memory(&quantized_rgba, &options) {
-                Ok(optimized) => {
-                    std::fs::write(&output_path, optimized).map_err(|e| e.to_string())?;
-                }
-                Err(e) => return Err(format!("PNG optimization failed: {}", e)),
+                let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
+                writer
+                    .write_image_data(&indices)
+                    .map_err(|e| e.to_string())?;
             }
+
+            let mut options = Options::default();
+            options.deflate = Deflaters::Libdeflater { compression: 12 };
+            options.strip = if strip_metadata {
+                StripChunks::All
+            } else {
+                StripChunks::Safe
+            };
+
+            let optimized = optimize_from_memory(&png_bytes, &options)
+                .map_err(|e| format!("PNG optimization failed: {:?}", e))?;
+
+            std::fs::write(&output_path, optimized).map_err(|e| e.to_string())?;
         } else {
-            // Lossless compression using oxipng
-            let compression_level = match quality {
-                0..=30 => 1,  // Fast
-                31..=70 => 6, // Default
-                _ => 9,       // Maximum
-            };
-
             let mut options = Options::default();
-            options.deflate = oxipng::Deflaters::Libdeflater {
-                compression: compression_level,
-            };
-            options.strip = StripChunks::Safe;
-            options.optimize_alpha = true;
 
-            let rgba_data = img.to_rgba8();
-            match oxipng::optimize_from_memory(&rgba_data, &options) {
-                Ok(optimized) => {
-                    std::fs::write(&output_path, optimized).map_err(|e| e.to_string())?;
-                }
-                Err(e) => return Err(format!("PNG optimization failed: {}", e)),
-            }
+            options.deflate = Deflaters::Libdeflater { compression: 12 };
+
+            options.strip = if strip_metadata {
+                StripChunks::All
+            } else {
+                StripChunks::Safe
+            };
+
+            optimize(
+                &InFile::Path(PathBuf::from(image_path)),
+                &OutFile::Path {
+                    path: Some(output_path.clone()),
+                    preserve_attrs: !strip_metadata,
+                },
+                &options,
+            )
+            .map_err(|e| format!("PNG optimization failed: {:?}", e))?;
         }
 
-        Ok(output_path)
+        Ok(output_path_clone)
     }
 
-    /// Compresses a JPEG image
-    /// - Lossy: uses MozJPEG for lossy compression
-    /// - Lossless: uses jpegoptim for lossless optimization
     async fn compress_jpeg(
         &mut self,
         image_path: &str,
         quality: u8,
         image_id: &str,
         is_lossless: bool,
+        strip_metadata: bool,
     ) -> Result<PathBuf, String> {
+        use std::process::Stdio;
+        use std::sync::Arc;
+
         let output_filename = format!("{}.jpg", image_id);
         let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
             .iter()
             .collect();
 
-        // Load the image
-        let img = ImageReader::open(image_path)
-            .map_err(|e| e.to_string())?
-            .decode()
-            .map_err(|e| e.to_string())?;
+        std::fs::copy(image_path, &output_path).map_err(|e| e.to_string())?;
 
-        if !is_lossless {
-            // Lossy compression using image crate with quality setting
-            let jpeg_quality = quality.max(1).min(100) as u8;
-            let mut output_file = std::fs::File::create(&output_path).map_err(|e| e.to_string())?;
-            let encoder =
-                image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output_file, jpeg_quality);
-            img.write_with_encoder(encoder).map_err(|e| e.to_string())?;
+        let jpeg_quality = quality.clamp(1, 100).to_string();
+        let file_path_str = output_path.to_str().unwrap();
 
-            // Apply jpegoptim for further optimization
-            self.run_jpegoptim(&output_path, jpeg_quality).await?;
-        } else {
-            // Lossless compression using image crate + jpegoptim
-            let mut output_file = std::fs::File::create(&output_path).map_err(|e| e.to_string())?;
-            let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(
-                &mut output_file,
-                100, // Use maximum quality for lossless
-            );
-            img.write_with_encoder(encoder).map_err(|e| e.to_string())?;
+        let mut args: Vec<&str> = vec!["-o", "-q", "--all-progressive"];
 
-            // Apply jpegoptim for further optimization (strips metadata)
-            self.run_jpegoptim(&output_path, 100).await?;
+        if strip_metadata {
+            args.push("--strip-all");
         }
 
-        Ok(output_path)
-    }
+        if is_lossless {
+            args.push("--max=100");
+        } else {
+            args.push("-m");
+            args.push(&jpeg_quality);
+        }
 
-    /// Runs jpegoptim on a JPEG file for additional optimization
-    async fn run_jpegoptim(&mut self, file_path: &Path, quality: u8) -> Result<(), String> {
-        let jpeg_quality = quality.max(1).min(100);
+        args.push(file_path_str);
+
+        log::info!("[image] jpegoptim final command{:?}", args);
 
         let command = self
             .jpegoptim
-            .args([
-                "-m",
-                &jpeg_quality.to_string(),
-                "-o", // Overwrite
-                "-q", // Quiet
-                "--strip-all",
-                file_path.to_str().unwrap(),
-            ])
+            .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
@@ -376,13 +377,12 @@ impl ImageCompressor {
                 let cp = Arc::new(child);
                 let cp_clone = cp.clone();
 
-                // Wait for completion
                 tokio::spawn(async move {
                     let _ = cp_clone.wait();
                 });
 
                 match cp.wait() {
-                    Ok(status) if status.success() => Ok(()),
+                    Ok(status) if status.success() => Ok(output_path),
                     Ok(_) => Err(String::from("jpegoptim failed")),
                     Err(e) => Err(format!("jpegoptim error: {}", e)),
                 }
@@ -397,6 +397,7 @@ impl ImageCompressor {
         image_path: &str,
         quality: u8,
         image_id: &str,
+        strip_metadata: bool,
     ) -> Result<PathBuf, String> {
         let output_filename = format!("{}.webp", image_id);
         let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
@@ -432,6 +433,7 @@ impl ImageCompressor {
         quality: u8,
         image_id: &str,
         is_lossless: bool,
+        strip_metadata: bool,
     ) -> Result<PathBuf, String> {
         let output_filename = format!("{}.gif", image_id);
         let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
@@ -478,6 +480,7 @@ impl ImageCompressor {
         quality: u8,
         image_id: &str,
         _is_lossless: bool,
+        strip_metadata: bool,
     ) -> Result<PathBuf, String> {
         let output_filename = format!("{}.svg", image_id);
         let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]

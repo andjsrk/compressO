@@ -6,7 +6,7 @@ import { useSnapshot } from 'valtio'
 import Select from '@/components/Select'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 const FPS = [24, 25, 30, 50, 60] as const
 
@@ -45,7 +45,7 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
       if (appProxy.state.media.length > 1) {
         appProxy.state.commonConfigForBatchCompression.videoConfig.shouldEnableCustomFPS =
           !shouldEnableCustomFPS
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex, shouldEnableCustomFPS])
@@ -63,7 +63,7 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
         if (appProxy.state.media.length > 1) {
           appProxy.state.commonConfigForBatchCompression.videoConfig.customFPS =
             +value
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -85,7 +85,7 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
         onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput}
       >
-        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full font-bold">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           FPS
         </p>
       </Switch>

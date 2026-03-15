@@ -55,6 +55,10 @@ impl FFMPEG {
         }
     }
 
+    pub fn get_asset_dir(&self) -> String {
+        self.assets_dir.display().to_string()
+    }
+
     /// Compresses a video from a path
     pub async fn compress_video(
         &mut self,
@@ -1288,10 +1292,6 @@ impl FFMPEG {
             }
             Err(e) => Err(format!("Failed to spawn FFmpeg: {}", e)),
         }
-    }
-
-    pub fn get_asset_dir(&self) -> String {
-        self.assets_dir.display().to_string()
     }
 
     fn build_ffmpeg_filters(&self, actions: &Vec<Value>) -> String {

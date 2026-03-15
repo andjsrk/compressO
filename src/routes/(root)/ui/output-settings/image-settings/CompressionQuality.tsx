@@ -5,7 +5,7 @@ import { snapshot, useSnapshot } from 'valtio'
 import Slider from '@/components/Slider'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../-state'
 
 type CompressionQualityProps = {
   mediaIndex: number
@@ -21,13 +21,13 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
       isLoadingMediaFiles,
     },
   } = useSnapshot(appProxy)
-  const video =
-    media.length > 0 && mediaIndex >= 0 && media[mediaIndex].type == 'video'
+  const image =
+    media.length > 0 && mediaIndex >= 0 && media[mediaIndex].type == 'image'
       ? media[mediaIndex]
       : null
-  const { config } = video ?? {}
-  const { quality: compressionQuality, shouldEnableQuality } =
-    config ?? commonConfigForBatchCompression.videoConfig ?? {}
+  const { config } = image ?? {}
+  const { quality: compressionQuality, isLossless } =
+    config ?? commonConfigForBatchCompression.imageConfig ?? {}
 
   const [quality, setQuality] = React.useState<number>(
     compressionQuality ?? 100,
@@ -44,10 +44,10 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
     if (
       appSnapshot.state.media.length &&
       quality !==
-        (mediaIndex >= 0 && appSnapshot.state.media[mediaIndex].type === 'video'
+        (mediaIndex >= 0 && appSnapshot.state.media[mediaIndex].type === 'image'
           ? appSnapshot.state.media[mediaIndex]?.config?.quality
           : appSnapshot.state.media.length > 1
-            ? appSnapshot.state.commonConfigForBatchCompression?.videoConfig
+            ? appSnapshot.state.commonConfigForBatchCompression?.imageConfig
                 ?.quality
             : undefined)
     ) {
@@ -57,14 +57,14 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
       debounceRef.current = setTimeout(() => {
         if (
           mediaIndex >= 0 &&
-          appProxy.state.media[mediaIndex].type === 'video' &&
+          appProxy.state.media[mediaIndex].type === 'image' &&
           appProxy.state.media[mediaIndex]?.config
         ) {
           appProxy.state.media[mediaIndex].config.quality = quality
           appProxy.state.media[mediaIndex].isConfigDirty = true
         } else {
           if (appProxy.state.media.length > 1) {
-            appProxy.state.commonConfigForBatchCompression.videoConfig.quality =
+            appProxy.state.commonConfigForBatchCompression.imageConfig.quality =
               quality
             normalizeBatchMediaConfig()
           }
@@ -95,17 +95,16 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
   const handleSwitchToggle = useCallback(() => {
     if (
       mediaIndex >= 0 &&
-      appProxy.state.media[mediaIndex].type === 'video' &&
+      appProxy.state.media[mediaIndex].type === 'image' &&
       appProxy.state.media[mediaIndex]?.config
     ) {
-      appProxy.state.media[mediaIndex].config.shouldEnableQuality =
-        !appProxy.state.media[mediaIndex].config.shouldEnableQuality
+      appProxy.state.media[mediaIndex].config.isLossless =
+        !appProxy.state.media[mediaIndex].config.isLossless
       appProxy.state.media[mediaIndex].isConfigDirty = true
     } else {
       if (appProxy.state.media.length > 1) {
-        appProxy.state.commonConfigForBatchCompression.videoConfig.shouldEnableQuality =
-          !appProxy.state.commonConfigForBatchCompression.videoConfig
-            .shouldEnableQuality
+        appProxy.state.commonConfigForBatchCompression.imageConfig.isLossless =
+          !appProxy.state.commonConfigForBatchCompression.imageConfig.isLossless
         normalizeBatchMediaConfig()
       }
     }
@@ -120,19 +119,19 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
   return (
     <>
       <Switch
-        isSelected={shouldEnableQuality}
+        isSelected={isLossless}
         onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput}
       >
         <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
-          Quality
+          Lossless Compression
         </p>
       </Switch>
       <AnimatePresence mode="wait">
-        {shouldEnableQuality ? (
+        {!isLossless ? (
           <motion.div {...slideDownTransition}>
             <Slider
-              label
+              label="Quality"
               aria-label="Quality"
               marks={[
                 {
@@ -144,31 +143,32 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
                   label: 'Medium',
                 },
                 {
-                  value: 99,
+                  value: 100,
                   label: 'High',
                 },
               ]}
               minValue={1}
               maxValue={100}
-              className="mb-8 mx-auto"
+              className="mb-8 mt-1 mx-auto"
               classNames={{
                 mark: 'text-[11px] mt-2',
                 base: 'mt-[-10px]',
+                label: 'text-xs',
               }}
               getValue={(value) => {
                 const val = Array.isArray(value) ? value?.[0] : +value
                 return val < 50
                   ? 'Low'
-                  : val >= 50 && val < 100
+                  : val >= 50 && val < 99
                     ? 'Medium'
                     : 'High'
               }}
-              renderValue={(props) => (
+              renderValue={() => (
                 <p className="text-primary text-xs">{quality}%</p>
               )}
               value={quality}
               onChange={handleQualityChange}
-              isDisabled={!shouldEnableQuality || shouldDisableInput}
+              isDisabled={isLossless || shouldDisableInput}
             />
           </motion.div>
         ) : null}

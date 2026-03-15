@@ -30,6 +30,7 @@ use lib::tauri_commands::{
         delete_cache, delete_file, get_file_metadata, get_image_dimension, move_file,
         read_files_from_clipboard, read_files_from_paths,
     },
+    image::{__cmd__compress_images_batch, compress_images_batch},
     updater::{
         __cmd__check_update, __cmd__download_and_install_update, check_update,
         download_and_install_update,
@@ -254,6 +255,7 @@ async fn main() {
         .invoke_handler(tauri::generate_handler![
             compress_video,
             compress_videos_batch,
+            compress_images_batch,
             extract_subtitle,
             generate_video_thumbnail,
             get_video_basic_info,

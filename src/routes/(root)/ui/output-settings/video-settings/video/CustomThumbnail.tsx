@@ -13,7 +13,7 @@ import Switch from '@/components/Switch'
 import TextInput from '@/components/TextInput'
 import { slideDownTransition } from '@/utils/animation'
 import { cn } from '@/utils/tailwind'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 type CustomThumbnailProps = {
   mediaIndex: number
@@ -72,7 +72,7 @@ function CustomThumbnail({ mediaIndex }: CustomThumbnailProps) {
           if (appProxy.state.media.length > 1) {
             appProxy.state.commonConfigForBatchCompression.videoConfig.customThumbnailPath =
               filePath
-            normalizeBatchVideosConfig()
+            normalizeBatchMediaConfig()
           }
         }
       }
@@ -93,7 +93,7 @@ function CustomThumbnail({ mediaIndex }: CustomThumbnailProps) {
       if (appProxy.state.media.length > 1) {
         appProxy.state.commonConfigForBatchCompression.videoConfig.customThumbnailPath =
           null
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex])
@@ -112,7 +112,7 @@ function CustomThumbnail({ mediaIndex }: CustomThumbnailProps) {
         if (appProxy.state.media.length > 1) {
           appProxy.state.commonConfigForBatchCompression.videoConfig.shouldEnableCustomThumbnail =
             isSelected
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -137,7 +137,7 @@ function CustomThumbnail({ mediaIndex }: CustomThumbnailProps) {
             size="sm"
           >
             <div className="flex justify-center items-center">
-              <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm font-bold">
+              <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
                 Thumbnail{' '}
               </span>
             </div>

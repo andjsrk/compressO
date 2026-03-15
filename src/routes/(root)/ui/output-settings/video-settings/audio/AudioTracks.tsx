@@ -7,7 +7,7 @@ import Switch from '@/components/Switch'
 import { AudioStream } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
 import { cn } from '@/utils/tailwind'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 type AudioTracksProps = {
   mediaIndex: number
@@ -69,7 +69,7 @@ function AudioTracks({ mediaIndex }: AudioTracksProps) {
         if (appProxy.state.media.length > 1) {
           appProxy.state.commonConfigForBatchCompression.videoConfig.selectedAudioTracks =
             allTrackIndices
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     }
@@ -107,7 +107,7 @@ function AudioTracks({ mediaIndex }: AudioTracksProps) {
           appProxy.state.commonConfigForBatchCompression.videoConfig.selectedAudioTracks =
             []
         }
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex, shouldEnableAudioTrackSelection, audioStreams])
@@ -137,7 +137,7 @@ function AudioTracks({ mediaIndex }: AudioTracksProps) {
         if (appProxy.state.media.length > 1) {
           appProxy.state.commonConfigForBatchCompression.videoConfig.selectedAudioTracks =
             newSelected
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -161,7 +161,7 @@ function AudioTracks({ mediaIndex }: AudioTracksProps) {
         onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput || audioStreams.length === 0}
       >
-        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full font-bold">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           Tracks
         </p>
       </Switch>

@@ -1,4 +1,4 @@
-import { SelectItem } from '@heroui/react'
+import { SelectItem, SelectSection } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect } from 'react'
 import { useSnapshot } from 'valtio'
@@ -7,7 +7,7 @@ import Select from '@/components/Select'
 import Switch from '@/components/Switch'
 import { extensions } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 type VideoExtension = keyof typeof extensions.video
 
@@ -87,7 +87,7 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
     media.length > 0 && mediaIndex >= 0 && media[mediaIndex].type === 'video'
       ? media[mediaIndex]
       : null
-  const { config, videoInfoRaw } = video ?? {}
+  const { config, videoInfoRaw, extension: videoExtension } = video ?? {}
   const {
     shouldEnableCustomAudioCodec,
     customAudioCodec,
@@ -95,7 +95,11 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
     audioConfig,
   } = config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
-  const currentExtension = convertToExtension ?? 'mp4'
+  const currentExtension = convertToExtension
+    ? convertToExtension === '-'
+      ? videoExtension
+      : convertToExtension
+    : '-'
 
   useEffect(() => {
     if (shouldEnableCustomAudioCodec && customAudioCodec) {
@@ -104,7 +108,7 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
       )
       if (
         currentCodec &&
-        !currentCodec.compatible_containers.includes(currentExtension)
+        !currentCodec.compatible_containers.includes(currentExtension as any)
       ) {
         // Codec is incompatible with current extension, reset it
         if (
@@ -141,7 +145,7 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
       if (appProxy.state.media.length > 1) {
         appProxy.state.commonConfigForBatchCompression.videoConfig.shouldEnableCustomAudioCodec =
           !shouldEnableCustomAudioCodec
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex, shouldEnableCustomAudioCodec])
@@ -159,7 +163,7 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
         if (appProxy.state.media.length > 1) {
           appProxy.state.commonConfigForBatchCompression.videoConfig.customAudioCodec =
             value
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -176,10 +180,10 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
     hasNoAudio ||
     audioConfig?.volume === 0
 
-  const initialCodecValue = customAudioCodec ?? 'aac'
+  const initialCodecValue = customAudioCodec ?? '-'
 
   const compatibleCodecs = AUDIO_CODECS.filter((codec) =>
-    codec.compatible_containers.includes(currentExtension),
+    codec.compatible_containers.includes(currentExtension as any),
   )
 
   return (
@@ -189,7 +193,7 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
         onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput}
       >
-        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full font-bold">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           Codec
         </p>
       </Switch>
@@ -215,20 +219,31 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
                 label: '!text-gray-600 dark:!text-gray-400 text-xs',
               }}
             >
-              {compatibleCodecs?.map((codec) => (
-                <SelectItem
-                  key={codec.value}
-                  textValue={codec.name}
-                  className="flex justify-center items-center"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm">{codec.name}</span>
-                    <span className="text-xs text-gray-500">
-                      {codec.description}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
+              <SelectItem
+                key="-"
+                textValue="Same as input"
+                className="flex justify-center items-center"
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm">Same as input</span>
+                </div>
+              </SelectItem>
+              <SelectSection>
+                {compatibleCodecs?.map((codec) => (
+                  <SelectItem
+                    key={codec.value}
+                    textValue={codec.name}
+                    className="flex justify-center items-center"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm">{codec.name}</span>
+                      <span className="text-xs text-gray-500">
+                        {codec.description}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectSection>
             </Select>
           </motion.div>
         ) : null}

@@ -1,6 +1,6 @@
 import { Tab } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
@@ -686,4 +686,4 @@ function PreviewBatchMedia() {
   )
 }
 
-export default PreviewBatchMedia
+export default memo(PreviewBatchMedia)

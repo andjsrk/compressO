@@ -1,5 +1,5 @@
 import { UseDisclosureProps, useDisclosure } from '@heroui/react'
-import React from 'react'
+import { memo } from 'react'
 import { snapshot, useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
@@ -105,4 +105,4 @@ function CompressionActions() {
   ) : null
 }
 
-export default React.memo(CompressionActions)
+export default memo(CompressionActions)

@@ -9,7 +9,7 @@ import Switch from '@/components/Switch'
 import Tooltip from '@/components/Tooltip'
 import { compressionPresets } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy, normalizeBatchVideosConfig } from '../../../../-state'
+import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 const PRESETS: {
   name: keyof typeof compressionPresets
@@ -60,7 +60,7 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
       if (appProxy.state.media.length > 1) {
         appProxy.state.commonConfigForBatchCompression.videoConfig.shouldDisableCompression =
           !shouldDisableCompression
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex, shouldDisableCompression])
@@ -79,7 +79,7 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
           if (appProxy.state.media.length > 1) {
             appProxy.state.commonConfigForBatchCompression.videoConfig.presetName =
               value
-            normalizeBatchVideosConfig()
+            normalizeBatchMediaConfig()
           }
         }
       }
@@ -104,7 +104,7 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
           size="sm"
         >
           <div className="flex justify-center items-center">
-            <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm font-bold">
+            <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
               Compress
             </span>
           </div>

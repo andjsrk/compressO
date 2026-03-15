@@ -1,10 +1,9 @@
 use crate::{
     domain::{
         AudioConfig, BatchCompressionResult, CompressionResult, SubtitlesConfig, TrimSegment,
-        VideoCompressionConfig, VideoInfo, VideoMetadataConfig, VideoThumbnail,
+        VideoCompressionConfig, VideoMetadataConfig, VideoThumbnail,
     },
     ffmpeg::{self},
-    ffprobe,
     fs::delete_stale_files,
 };
 use serde_json::Value;

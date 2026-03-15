@@ -50,7 +50,7 @@ export type SubtitlesConfig = {
 }
 
 export type VideoConfig = {
-  convertToExtension: keyof typeof extensions.video
+  convertToExtension: keyof typeof extensions.video | '-'
   presetName: keyof typeof compressionPresets
   shouldDisableCompression: boolean
   audioConfig: AudioConfig
@@ -79,7 +79,6 @@ export type VideoConfig = {
   shouldEnableCustomChannel?: boolean
   shouldEnableCustomBitrate?: boolean
   shouldEnableCustomAudioCodec?: boolean
-  customAudioCodec?: string
   shouldEnableAudioTrackSelection?: boolean
   selectedAudioTracks?: number[]
   subtitlesConfig?: SubtitlesConfig | null
@@ -130,7 +129,7 @@ export type Video = {
 }
 
 export type ImageConfig = {
-  convertToExtension: keyof typeof extensions.image
+  convertToExtension: keyof typeof extensions.image | '-'
   isLossless: boolean
   quality?: number | null
   stripMetadata: boolean

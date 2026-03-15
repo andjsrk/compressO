@@ -1,11 +1,11 @@
 import { AccordionItem } from '@heroui/react'
+import { memo } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Accordion from '@/components/Accordion'
 import Icon from '@/components/Icon'
 import Title from '@/components/Title'
 import { appProxy } from '../../-state'
-import CompressionActions from '../CompressionActions'
 import ImageSettings from './image-settings/-index'
 import VideoSettings from './video-settings/-index'
 
@@ -14,34 +14,21 @@ type OutputSettingsProps = {
 }
 function OutputSettings({ mediaIndex }: OutputSettingsProps) {
   const {
-    state: {
-      activeTab,
-      media,
-      selectedMediaIndexForCustomization,
-      isCompressing,
-    },
+    state: { activeTab, media, selectedMediaIndexForCustomization },
   } = useSnapshot(appProxy)
 
   return (
     <div>
-      <div className="flex items-center justify-between w-full mb-2">
-        <Title
-          title={
-            media.length === 1 || selectedMediaIndexForCustomization > -1
-              ? 'Output Settings'
-              : 'Batch Settings'
-          }
-          className="text-xl font-bold"
-        />
-
-        {!isCompressing ? <CompressionActions /> : null}
-      </div>
       {activeTab === 'videos' ||
-      (media.length === 1 && media[0].type === 'video') ? (
+      (media.length === 1 && media[0].type === 'video') ||
+      (selectedMediaIndexForCustomization !== -1 &&
+        media[selectedMediaIndexForCustomization]?.type === 'video') ? (
         <VideoSettings mediaIndex={mediaIndex} />
       ) : activeTab === 'images' ||
-        (media.length === 1 && media[0].type === 'image') ? (
-        <ImageSettings />
+        (media.length === 1 && media[0].type === 'image') ||
+        (selectedMediaIndexForCustomization !== -1 &&
+          media[selectedMediaIndexForCustomization]?.type === 'image') ? (
+        <ImageSettings mediaIndex={mediaIndex} />
       ) : (
         <div className="mx-[-6px]">
           <Accordion isCompact keepContentMounted variant="splitted">
@@ -75,7 +62,7 @@ function OutputSettings({ mediaIndex }: OutputSettingsProps) {
                 <Icon name="caret" className={isOpen ? '-rotate-90' : ''} />
               )}
             >
-              <ImageSettings />
+              <ImageSettings mediaIndex={mediaIndex} />
             </AccordionItem>
           </Accordion>
         </div>
@@ -84,4 +71,4 @@ function OutputSettings({ mediaIndex }: OutputSettingsProps) {
   )
 }
 
-export default OutputSettings
+export default memo(OutputSettings)

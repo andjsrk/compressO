@@ -13,7 +13,7 @@ import type { VideoMetadataConfig } from '@/types/app'
 import { slideDownTransition } from '@/utils/animation'
 import {
   appProxy,
-  normalizeBatchVideosConfig,
+  normalizeBatchMediaConfig,
   videoMetadataConfigInitialState,
 } from '../../../../-state'
 
@@ -91,7 +91,7 @@ function Metadata({ mediaIndex }: MetadataProps) {
               ?.toISOString()
           }
 
-          normalizeBatchVideosConfig()
+          normalizeBatchMediaConfig()
         }
       }
     },
@@ -132,7 +132,7 @@ function Metadata({ mediaIndex }: MetadataProps) {
             cloneDeep(videoMetadataConfigInitialState)
         }
 
-        normalizeBatchVideosConfig()
+        normalizeBatchMediaConfig()
       }
     }
   }, [mediaIndex])
@@ -151,7 +151,7 @@ function Metadata({ mediaIndex }: MetadataProps) {
         isDisabled={shouldDisableInput}
       >
         <div className="flex justify-center items-center">
-          <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm font-bold">
+          <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
             Preserve Metadata
           </span>
         </div>

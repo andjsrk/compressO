@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
@@ -239,4 +239,4 @@ function PreviewSingleMedia({ mediaIndex }: PreviewSingleMediaProps) {
   )
 }
 
-export default PreviewSingleMedia
+export default React.memo(PreviewSingleMedia)

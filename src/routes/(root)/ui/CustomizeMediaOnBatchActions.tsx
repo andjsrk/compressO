@@ -2,7 +2,7 @@ import { Button } from '@heroui/react'
 import { core } from '@tauri-apps/api'
 import { motion } from 'framer-motion'
 import { cloneDeep } from 'lodash'
-import { useCallback } from 'react'
+import { memo, useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import { zoomInTransition } from '@/utils/animation'
@@ -55,12 +55,19 @@ function CustomizeMediaOnBatchActions() {
           mediaSnapshot.thumbnailPathRaw!,
         )
         mediaSnapshot.config = cloneDeep(
-          appProxy.state.commonConfigForBatchCompression,
+          appProxy.state.commonConfigForBatchCompression.videoConfig,
         )
         appProxy.state.media[selectedMediaIndexForCustomization].isConfigDirty =
           false
-        appProxy.state.selectedMediaIndexForCustomization = -1
+      } else if (mediaSnapshot?.type === 'image') {
+        // TODO: Reset the thumbnail after adding transform image feature
+        mediaSnapshot.config = cloneDeep(
+          appProxy.state.commonConfigForBatchCompression.imageConfig,
+        )
       }
+      appProxy.state.media[selectedMediaIndexForCustomization].isConfigDirty =
+        false
+      appProxy.state.selectedMediaIndexForCustomization = -1
     }
   }, [])
 
@@ -97,4 +104,4 @@ function CustomizeMediaOnBatchActions() {
   )
 }
 
-export default CustomizeMediaOnBatchActions
+export default memo(CustomizeMediaOnBatchActions)
