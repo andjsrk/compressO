@@ -49,9 +49,7 @@ oxipng = { version = "9", features = ["parallel", "zopfli", "filetime"], default
 mozjpeg = "0.9.5"
 webp = "0.3"
 gif = "0.12"
-rgb = "0.8"
-imagequant = "4.2"
-png = "0.17.16"
+img-parts = "0.4.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 dbus = "0.9"

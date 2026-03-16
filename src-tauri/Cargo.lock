@@ -721,16 +721,14 @@ dependencies = [
  "dbus",
  "gif 0.12.0",
  "image",
- "imagequant",
+ "img-parts",
  "infer 0.15.0",
  "log",
  "mozjpeg",
  "nanoid",
  "objc",
  "oxipng",
- "png 0.17.16",
  "regex",
- "rgb",
  "serde",
  "serde_json",
  "shared_child",
@@ -2249,16 +2247,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "imagequant"
-version = "4.4.1"
+name = "img-parts"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caf5d73b959dfbe5d6b5cd3ca8de5265c7bc58297f20560a60a1d2ba6a19991f"
+checksum = "19734e3c43b2a850f5889c077056e47c874095f2d87e853c7c41214ae67375f0"
 dependencies = [
- "arrayvec",
- "once_cell",
- "rayon",
- "rgb",
- "thread_local",
+ "bytes",
+ "crc32fast",
+ "miniz_oxide",
 ]
 
 [[package]]
@@ -5530,15 +5526,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
-]
-
-[[package]]
-name = "thread_local"
-version = "1.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f60246a4944f24f6e018aa17cdeffb7818b76356965d03b07d6a9886e8962185"
-dependencies = [
- "cfg-if",
 ]
 
 [[package]]
