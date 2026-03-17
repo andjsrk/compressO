@@ -21,6 +21,11 @@ pub async fn get_image_dimension(image_path: &str) -> Result<(u32, u32), String>
 }
 
 #[tauri::command]
+pub async fn get_svg_dimension(image_path: &str) -> Result<(u32, u32), String> {
+    fs::get_svg_dimension(image_path)
+}
+
+#[tauri::command]
 pub async fn move_file(from: &str, to: &str) -> Result<(), String> {
     if let Err(err) = fs::copy_file(from, to).await {
         return Err(err.to_string());

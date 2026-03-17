@@ -1,3 +1,4 @@
+import { Button } from '@heroui/react'
 import { core } from '@tauri-apps/api'
 import { motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -7,7 +8,6 @@ import { toast } from 'sonner'
 import { useSnapshot } from 'valtio'
 import { subscribeKey } from 'valtio/utils'
 
-import Button from '@/components/Button'
 import Icon from '@/components/Icon'
 import Image from '@/components/Image'
 import ImageViewer from '@/components/ImageViewer'
@@ -383,14 +383,14 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
             <Image
               alt="video to compress"
               src={thumbnailPath as string}
-              className="object-contain rounded-3xl max-h-[65vh] border-1 border-zinc-200 dark:border-zinc-900"
+              className="object-contain rounded-3xl max-h-[65vh] border-1 border-zinc-200 dark:border-zinc-900 min-w-[100px] min-h-[100px]"
               onError={() => {
                 if (!isProcessCompleted) {
                   handleRegenerateThumbnail('00:00:01.00', 0, true)
                 }
               }}
             />
-            <div className="absolute bottom-4 right-4 z-[10] flex items-center gap-2">
+            <div className="absolute bottom-2 right-2 z-[20] flex items-center gap-3 bg-zinc-900/50 min-h-[25px] px-3 rounded-2xl">
               {videoDuration && !isProcessCompleted ? (
                 <Tooltip content="Regenerate Thumbnail" className="w-0! h-0!">
                   <Button
@@ -402,17 +402,24 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
                     }}
                     isDisabled={isThumbnailRegenerating}
                     isLoading={isThumbnailRegenerating}
-                    className="!p-0 !min-h-0 !h-[unset] !py-2"
+                    className="!p-0 !min-h-0 !h-[unset] !py-2 !w-[unset] !min-w-[unset] hover:bg-none"
                   >
-                    <Icon name="image" size={22} />
+                    <Icon name="image" size={20} />
                   </Button>
                 </Tooltip>
               ) : null}
-              <ImageViewer>
+              <ImageViewer
+                // @ts-ignore
+                providerProps={
+                  mediaFile?.extension === 'svg'
+                    ? { photoWrapClassName: 'bg-zinc-800' }
+                    : {}
+                }
+              >
                 <PhotoView src={thumbnailPath!}>
                   <div>
                     <Tooltip content="Enlarge Image">
-                      <Icon name="zoom" size={20} className="cursor-pointer" />
+                      <Icon name="zoom" size={18} className="cursor-pointer" />
                     </Tooltip>
                   </div>
                 </PhotoView>

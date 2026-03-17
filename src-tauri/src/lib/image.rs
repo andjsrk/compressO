@@ -335,7 +335,6 @@ impl ImageCompressor {
                 match cp.wait() {
                     Ok(status) if status.success() => {
                         if !strip_metadata {
-                            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
                             let _ = self.copy_image_metadata(
                                 ImageContainer::Png,
                                 input_path,
@@ -499,7 +498,7 @@ impl ImageCompressor {
         let args = vec!["-Q", &quality_str, "-o", &output_path_str, image_path];
 
         if strip_metadata {
-            // No support for webp container for now
+            // No support for gif container for now
         }
 
         log::info!("[image] gifski command: {:?}", args);
@@ -527,9 +526,9 @@ impl ImageCompressor {
     async fn compress_svg(
         &mut self,
         image_path: &str,
-        quality: u8,
+        _quality: u8, // irrelevant
         image_id: &str,
-        _is_lossless: bool,
+        _is_lossless: bool, // irrelevant
         strip_metadata: bool,
     ) -> Result<PathBuf, String> {
         let output_filename = format!("{}.svg", image_id);
@@ -537,38 +536,189 @@ impl ImageCompressor {
             .iter()
             .collect();
 
-        let mut svg_content = std::fs::read_to_string(image_path).map_err(|e| e.to_string())?;
+        let svg_content =
+            svgcleaner::cleaner::load_file(image_path).map_err(|err| err.to_string())?;
 
-        if quality < 80 {
-            svg_content = regex::Regex::new(r"<!--.*?-->")
-                .map_err(|e| e.to_string())?
-                .replace_all(&svg_content, "")
-                .to_string();
-        }
+        let tree = usvg::Tree::from_str(&svg_content, &usvg::Options::default()).unwrap();
+        let normalized_svg = tree.to_string(&usvg::WriteOptions::default());
 
-        svg_content = regex::Regex::new(r">\s+<")
-            .map_err(|e| e.to_string())?
-            .replace_all(&svg_content, "><")
-            .to_string();
+        let mut doc =
+            svgcleaner::cleaner::parse_data(&normalized_svg, &svgcleaner::ParseOptions::default())
+                .map_err(|err| err.to_string())?;
 
-        svg_content = regex::Regex::new(r"<\?xml[^>]*\?>")
-            .map_err(|e| e.to_string())?
-            .replace_all(&svg_content, "")
-            .to_string();
-        svg_content = regex::Regex::new(r"<!DOCTYPE[^>]*>")
-            .map_err(|e| e.to_string())?
-            .replace_all(&svg_content, "")
-            .to_string();
+        svgcleaner::cleaner::clean_doc(
+            &mut doc,
+            &svgcleaner::CleaningOptions {
+                remove_unused_defs: true,
+                resolve_use: false,
+                ungroup_groups: false,
+                ungroup_defs: false,
+                group_by_style: false,
+                merge_gradients: false,
+                remove_title: true,
+                remove_desc: true,
+                remove_metadata: strip_metadata,
+                remove_dupl_linear_gradients: true,
+                remove_dupl_radial_gradients: true,
+                remove_dupl_fe_gaussian_blur: true,
+                remove_invalid_stops: true,
+                remove_invisible_elements: true,
+                remove_version: true,
+                remove_unreferenced_ids: true,
+                trim_ids: true,
+                remove_xmlns_xlink_attribute: true,
+                remove_needless_attributes: true,
+                remove_gradient_attributes: true,
+                remove_default_attributes: true,
+                join_style_attributes: svgcleaner::StyleJoinMode::All,
+                apply_transform_to_shapes: true,
+                apply_transform_to_paths: true,
+                apply_transform_to_gradients: true,
+                paths_to_relative: true,
+                convert_shapes: false,
+                convert_segments: false,
+                remove_unused_segments: false,
+                coordinates_precision: 2,
+                properties_precision: 2,
+                paths_coordinates_precision: 2,
+                transforms_precision: 2,
+                remove_text_attributes: false,
+                remove_unused_coordinates: false,
+                regroup_gradient_stops: false,
+            },
+            &svgcleaner::WriteOptions::default(),
+        )
+        .map_err(|err| err.to_string())?;
 
-        if quality < 70 {
-            let metadata_re = regex::Regex::new(r"<(title|desc|metadata)[^>]*>.*?</\1>")
-                .map_err(|e| e.to_string())?;
-            svg_content = metadata_re.replace_all(&svg_content, "").to_string();
-        }
-
-        std::fs::write(&output_path, svg_content).map_err(|e| e.to_string())?;
+        svgcleaner::cleaner::save_file(
+            &doc.to_string().into_bytes(),
+            output_path.to_str().unwrap(),
+        )
+        .map_err(|err| err.to_string())?;
 
         Ok(output_path)
+    }
+
+    pub fn convert_raster_img_to_svg(
+        &self,
+        image_path: &str,
+        quality: u8,
+        image_id: &str,
+    ) -> Result<PathBuf, String> {
+        let output_filename = format!("{}.svg", image_id);
+        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
+            .iter()
+            .collect();
+
+        let q = quality.clamp(1, 100) as f32;
+        let filter_speckle = (1.0 + (100.0 - q) * (127.0 / 99.0)).round() as usize;
+
+        vtracer::convert_image_to_svg(
+            &PathBuf::from(&image_path),
+            &output_path,
+            vtracer::Config {
+                filter_speckle,
+                ..vtracer::Config::from_preset(vtracer::Preset::Photo)
+            },
+        )
+        .map_err(|err| err.to_string())?;
+
+        Ok(output_path)
+    }
+
+    pub fn convert_video_to_gif(
+        &self,
+        video_path: &str,
+        quality: u8,
+        video_id: &str,
+        dimensions: Option<(u32, u32)>,
+        fps: Option<&str>,
+    ) -> Result<PathBuf, String> {
+        // TODO: Implement CANCEL event and progress support.
+        let output_filename = format!("{}.gif", video_id);
+        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
+            .iter()
+            .collect();
+
+        let output_path_str = output_path
+            .to_str()
+            .ok_or("Invalid output path")?
+            .to_string();
+
+        let ffmpeg_args = vec!["-i", video_path, "-f", "yuv4mpegpipe", "-"];
+
+        let mut ffmpeg_cmd = self.ffmpeg.get_command()?;
+
+        let mut ffmpeg_child = ffmpeg_cmd
+            .args(&ffmpeg_args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
+
+        let ffmpeg_stdout = ffmpeg_child
+            .stdout
+            .take()
+            .ok_or("Failed to get ffmpeg stdout")?;
+
+        let gifski_quality = quality.clamp(1, 100);
+        let gifski_quality_str = gifski_quality.to_string();
+        let mut gifski_args: Vec<String> = vec!["-Q".to_string(), gifski_quality_str.clone()];
+
+        if let Some(fps_val) = fps {
+            gifski_args.push("-r".to_string());
+            gifski_args.push(fps_val.to_string());
+        }
+
+        if let Some((width, height)) = dimensions {
+            gifski_args.push("-W".to_string());
+            gifski_args.push(width.to_string());
+            gifski_args.push("-H".to_string());
+            gifski_args.push(height.to_string());
+        }
+
+        gifski_args.push("-o".to_string());
+        gifski_args.push(output_path_str.clone());
+        gifski_args.push("-".to_string());
+
+        let gifski_args_refs: Vec<&str> = gifski_args.iter().map(|s| s.as_str()).collect();
+
+        log::info!(
+            "[image] video to gif final command: {:?} | {:?}",
+            ffmpeg_args,
+            gifski_args_refs
+        );
+
+        let mut gifski_cmd = match self.app.shell().sidecar("compresso_gifski") {
+            Ok(command) => Command::from(command),
+            Err(err) => return Err(format!("[gifski-sidecar]: {:?}", err.to_string())),
+        };
+
+        let mut gifski_child = gifski_cmd
+            .args(&gifski_args_refs)
+            .stdin(ffmpeg_stdout)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to run gifski: {}", e))?;
+
+        let ffmpeg_result = ffmpeg_child.wait();
+        let gifski_result = gifski_child.wait();
+
+        match (ffmpeg_result, gifski_result) {
+            (Ok(ffmpeg_status), Ok(gifski_status)) => {
+                if ffmpeg_status.success() && gifski_status.success() {
+                    Ok(output_path)
+                } else {
+                    Err(format!(
+                        "Video to GIF conversion failed - ffmpeg: {:?}, gifski: {:?}",
+                        ffmpeg_status, gifski_status
+                    ))
+                }
+            }
+            (Err(ffmpeg_err), _) => Err(format!("ffmpeg error: {}", ffmpeg_err)),
+            (_, Err(gifski_err)) => Err(format!("gifski error: {}", gifski_err)),
+        }
     }
 
     pub async fn compress_images_batch(

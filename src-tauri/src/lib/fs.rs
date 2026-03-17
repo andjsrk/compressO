@@ -47,7 +47,7 @@ pub fn get_file_metadata(path: &str) -> Result<FileMetadata, String> {
     })
 }
 
-/// Get [width, height] of an image
+/// Get [width, height] of an image (only raster images PNG, JPEG, GIF, BMP, WebP, TIFF, etc.)
 pub fn get_image_dimension(image_path: &str) -> Result<(u32, u32), String> {
     if fs::metadata(image_path).is_err() {
         return Err(String::from("Image does not exist in the given path."));
@@ -61,6 +61,18 @@ pub fn get_image_dimension(image_path: &str) -> Result<(u32, u32), String> {
     match image.into_dimensions() {
         Ok(dimension) => Ok((dimension.0, dimension.1)),
         Err(err) => Err(err.to_string()),
+    }
+}
+
+// Parse & extract dimension from svg
+pub fn get_svg_dimension(svg_path: &str) -> Result<(u32, u32), String> {
+    let svg_data = fs::read_to_string(svg_path).map_err(|err| err.to_string())?;
+    let opt = usvg::Options::default();
+    if let Ok(tree) = usvg::Tree::from_str(&svg_data, &opt) {
+        let size = tree.size();
+        Ok((size.width() as u32, size.height() as u32))
+    } else {
+        Err("Could not extract dimension from the given svg".to_string())
     }
 }
 

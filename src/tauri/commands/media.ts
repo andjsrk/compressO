@@ -19,12 +19,18 @@ export async function compressMediaBatch(
     media.filter((m) => m.imageConfig != null).map((v) => v.imageConfig),
   )
   try {
-    const rs = await core.invoke('compress_images_batch', {
+    const rs = await core.invoke('compress_videos_batch', {
       batchId,
-      images: media
-        .filter((m) => m.imageConfig != null)
-        .map((m) => m.imageConfig),
+      videos: media
+        .filter((m) => m.videoConfig != null)
+        .map((m) => m.videoConfig),
     })
+    // const rs = await core.invoke('compress_images_batch', {
+    //   batchId,
+    //   images: media
+    //     .filter((m) => m.imageConfig != null)
+    //     .map((m) => m.imageConfig),
+    // })
     console.log('result', rs)
   } catch (error) {
     console.log('>>', error)

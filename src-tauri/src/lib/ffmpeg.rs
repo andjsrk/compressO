@@ -59,6 +59,13 @@ impl FFMPEG {
         self.assets_dir.display().to_string()
     }
 
+    pub fn get_command(&self) -> Result<Command, String> {
+        match self.app.shell().sidecar("compresso_ffmpeg") {
+            Ok(command) => Ok(Command::from(command)),
+            Err(err) => Err(format!("[ffmpeg-sidecar]: {:?}", err.to_string())),
+        }
+    }
+
     /// Compresses a video from a path
     pub async fn compress_video(
         &mut self,

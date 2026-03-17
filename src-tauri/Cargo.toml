@@ -48,6 +48,9 @@ clipboard-rs = "0.3.2"
 oxipng = { version = "9", features = ["parallel", "zopfli", "filetime"], default-features = false }
 webp = "0.3"
 img-parts = "0.4.0"
+usvg = "0.45.1"
+svgcleaner = "0.9.5"
+vtracer = "0.6.5"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 dbus = "0.9"

@@ -12,7 +12,11 @@ import Spinner from '@/components/Spinner'
 import { toast } from '@/components/Toast'
 import { generateVideoThumbnail } from '@/tauri/commands/ffmpeg'
 import { getVideoBasicInfo } from '@/tauri/commands/ffprobe'
-import { getFileMetadata, getImageDimension } from '@/tauri/commands/fs'
+import {
+  getFileMetadata,
+  getImageDimension,
+  getSvgDimension,
+} from '@/tauri/commands/fs'
 import { extensions } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
 import { Image, Video } from '../../types/app'
@@ -30,6 +34,17 @@ import ReadFilesFromClipboard from './ui/ReadFilesFromClipboard'
 export const Route = createFileRoute('/(root)/')({
   component: Root,
 })
+
+async function getSvgDimensionSilently(
+  path: string,
+): Promise<[number, number] | null> {
+  try {
+    const dimension = await getSvgDimension(path)
+    return dimension
+  } catch {
+    return null
+  }
+}
 
 function Root() {
   const { state, resetProxy } = useSnapshot(appProxy)
@@ -68,12 +83,11 @@ function Root() {
             ? 'video'
             : 'image'
 
-          console.log('>>', mediaType, fileMetadata)
-
           if (
             !fileMetadata ||
-            (typeof fileMetadata?.size === 'number' &&
-              fileMetadata?.size <= 1000)
+            (typeof fileMetadata?.size === 'number' && mediaType === 'video'
+              ? fileMetadata?.size <= 1000
+              : fileMetadata?.size < 100)
           ) {
             corruptedFilesCount++
             continue
@@ -134,8 +148,9 @@ function Root() {
             }
             appProxy.state.media.push(videoState)
           } else if (mediaType === 'image') {
-            const imageDimension = await getImageDimension(path)
-            console.log('>> imageInfo', imageDimension)
+            const imageDimension = await (path.endsWith('.svg')
+              ? getSvgDimensionSilently(path)
+              : getImageDimension(path))
             const imageState: Image & { type: 'image' } = {
               type: 'image',
               id: `${index}-${+new Date()}`,
@@ -148,8 +163,8 @@ function Root() {
               extension: fileMetadata?.extension?.toLowerCase?.(),
               config: cloneDeep(imageConfigInitialState),
               dimensions: {
-                width: imageDimension[0],
-                height: imageDimension[1],
+                width: imageDimension?.[0] ?? 0,
+                height: imageDimension?.[1] ?? 0,
               },
             }
             appProxy.state.media.push(imageState)

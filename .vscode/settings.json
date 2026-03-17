@@ -17,10 +17,12 @@
     "msvideo",
     "nsis",
     "pngquant",
+    "svgcleaner",
     "tauri",
     "Triggerer",
     "Unlisten",
-    "valtio"
+    "valtio",
+    "vtracer"
   ],
   "[json]": {
     "editor.defaultFormatter": "biomejs.biome"

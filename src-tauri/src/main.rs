@@ -25,10 +25,10 @@ use lib::tauri_commands::{
     file_manager::{__cmd__show_item_in_file_manager, show_item_in_file_manager},
     fs::{
         __cmd__copy_file_to_clipboard, __cmd__delete_cache, __cmd__delete_file,
-        __cmd__get_file_metadata, __cmd__get_image_dimension, __cmd__move_file,
-        __cmd__read_files_from_clipboard, __cmd__read_files_from_paths, copy_file_to_clipboard,
-        delete_cache, delete_file, get_file_metadata, get_image_dimension, move_file,
-        read_files_from_clipboard, read_files_from_paths,
+        __cmd__get_file_metadata, __cmd__get_image_dimension, __cmd__get_svg_dimension,
+        __cmd__move_file, __cmd__read_files_from_clipboard, __cmd__read_files_from_paths,
+        copy_file_to_clipboard, delete_cache, delete_file, get_file_metadata, get_image_dimension,
+        get_svg_dimension, move_file, read_files_from_clipboard, read_files_from_paths,
     },
     image::{__cmd__compress_images_batch, compress_images_batch},
     updater::{
@@ -260,6 +260,7 @@ async fn main() {
             generate_video_thumbnail,
             get_video_basic_info,
             get_image_dimension,
+            get_svg_dimension,
             get_file_metadata,
             move_file,
             delete_file,

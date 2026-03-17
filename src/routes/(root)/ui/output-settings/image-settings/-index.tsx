@@ -22,22 +22,30 @@ function ImageSettings({ mediaIndex }: ImageSettingsProps) {
 
   return (
     <div className="space-y-3 my-3">
-      <div>
-        <CompressionQuality mediaIndex={mediaIndex} />
-        <Divider className="my-3" />
-      </div>
-      {mediaIndex >= 0 &&
-      (['png', 'jpg', 'jpeg'] as (keyof typeof extensions.image)[]).includes(
+      {!(['svg'] as (keyof typeof extensions.image)[]).includes(
         image?.extension as keyof typeof extensions.image,
       ) ? (
+        <div>
+          <CompressionQuality mediaIndex={mediaIndex} />
+          <Divider className="my-3" />
+        </div>
+      ) : null}
+      {mediaIndex >= 0 &&
+      (
+        ['png', 'jpg', 'jpeg', 'svg'] as (keyof typeof extensions.image)[]
+      ).includes(image?.extension as keyof typeof extensions.image) ? (
         <div>
           <ImageMetadata mediaIndex={mediaIndex} />
           <Divider className="my-3" />
         </div>
       ) : null}
-      <div className="!mt-8">
-        <ImageExtension mediaIndex={mediaIndex} />
-      </div>
+      {!(['gif'] as (keyof typeof extensions.image)[]).includes(
+        image?.extension as keyof typeof extensions.image,
+      ) ? (
+        <div className="!mt-8">
+          <ImageExtension mediaIndex={mediaIndex} />
+        </div>
+      ) : null}
     </div>
   )
 }

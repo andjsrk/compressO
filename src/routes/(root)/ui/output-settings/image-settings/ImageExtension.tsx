@@ -72,24 +72,14 @@ const ImageExtension = ({ mediaIndex, disabled }: ImageExtensionProps) => {
       classNames={{
         label: '!text-gray-600 dark:!text-gray-400 text-sm',
       }}
-      isDisabled={
-        shouldDisableInput ||
-        Boolean(
-          image &&
-            (
-              ['gif', 'heic', 'svg'] as (keyof typeof extensions.image)[]
-            ).includes(image.extension as keyof typeof extensions.image),
-        )
-      }
+      isDisabled={shouldDisableInput}
     >
       <SelectItem key="-">Same as input</SelectItem>
       <SelectSection>
         {Object.values(extensions.image)
           .filter(
             (ext) =>
-              !(['gif', 'svg'] as (keyof typeof extensions.image)[]).includes(
-                ext,
-              ),
+              !(['gif'] as (keyof typeof extensions.image)[]).includes(ext),
           )
           .map((ext) => (
             <SelectItem key={ext}>{ext.toUpperCase()}</SelectItem>
