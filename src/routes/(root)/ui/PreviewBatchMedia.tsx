@@ -297,13 +297,6 @@ function PreviewBatchMedia() {
                     mediaFile?.sizeInBytes
                   : 0
 
-              const thumbnailPath =
-                mediaFile.type === 'video'
-                  ? mediaFile.thumbnailPath
-                  : mediaFile.type === 'image'
-                    ? mediaFile.path
-                    : null
-
               return (
                 <motion.div
                   key={mediaFile.id}
@@ -324,10 +317,10 @@ function PreviewBatchMedia() {
                     radius="lg"
                   >
                     <div className="relative w-full overflow-hidden">
-                      {thumbnailPath ? (
+                      {mediaFile.thumbnailPath ? (
                         <>
                           <Image
-                            src={thumbnailPath}
+                            src={mediaFile.thumbnailPath}
                             alt={mediaFile.fileName ?? ''}
                             className="w-full max-w-[unset] h-[180px] hlg:h-[220px] object-cover drop-shadow-xl rounded-xl"
                             removeWrapper

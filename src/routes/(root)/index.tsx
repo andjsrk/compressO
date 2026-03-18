@@ -17,6 +17,7 @@ import {
   getImageDimension,
   getSvgDimension,
 } from '@/tauri/commands/fs'
+import { convertSvgToPng } from '@/tauri/commands/image'
 import { extensions } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
 import { Image, Video } from '../../types/app'
@@ -156,6 +157,8 @@ function Root() {
               id: `${index}-${+new Date()}`,
               pathRaw: path,
               path: core.convertFileSrc(path),
+              thumbnailPathRaw: path,
+              thumbnailPath: core.convertFileSrc(path),
               fileName: fileMetadata?.fileName,
               mimeType: fileMetadata?.mimeType,
               sizeInBytes: fileMetadata?.size,
@@ -166,6 +169,32 @@ function Root() {
                 width: imageDimension?.[0] ?? 0,
                 height: imageDimension?.[1] ?? 0,
               },
+            }
+
+            // create a static image thumbnail for gif due to performance reason
+            if (path.endsWith('.gif')) {
+              try {
+                const gifThumbnail = await generateVideoThumbnail(path)
+                imageState.thumbnailPathRaw = gifThumbnail.filePath
+                imageState.thumbnailPath = core.convertFileSrc(
+                  gifThumbnail.filePath,
+                )
+              } catch {}
+            }
+
+            // create a static image thumbnail for large svg due to performance reason
+            if (
+              path.endsWith('.svg') &&
+              fileMetadata?.size >= 2 * 1024 * 1024
+            ) {
+              try {
+                const outputPngPath = await convertSvgToPng(
+                  path,
+                  imageState.id!,
+                )
+                imageState.thumbnailPathRaw = outputPngPath
+                imageState.thumbnailPath = core.convertFileSrc(outputPngPath)
+              } catch {}
             }
             appProxy.state.media.push(imageState)
           } else {

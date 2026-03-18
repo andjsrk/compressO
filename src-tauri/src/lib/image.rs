@@ -13,6 +13,7 @@ use img_parts::{
 };
 use log::error;
 use oxipng::{optimize, Deflaters, InFile, Options, OutFile, StripChunks};
+use resvg::{self, tiny_skia, usvg};
 use shared_child::SharedChild;
 use std::fs;
 use std::path::Path;
@@ -622,6 +623,32 @@ impl ImageCompressor {
             },
         )
         .map_err(|err| err.to_string())?;
+
+        Ok(output_path)
+    }
+
+    pub fn convert_svg_to_png(&self, image_path: &str, image_id: &str) -> Result<PathBuf, String> {
+        let output_filename = format!("{}.png", image_id);
+        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
+            .iter()
+            .collect();
+
+        let svg_data = fs::read(image_path).map_err(|err| err.to_string())?;
+        let svg_string = std::str::from_utf8(&svg_data).map_err(|err| err.to_string())?;
+
+        let tree = usvg::Tree::from_str(svg_string, &usvg::Options::default())
+            .map_err(|err| err.to_string())?;
+
+        let pixmap_size = tree.size().to_int_size();
+
+        let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())
+            .ok_or("Failed to create pixmap")?;
+
+        resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+
+        pixmap
+            .save_png(output_path.clone())
+            .map_err(|err| err.to_string())?;
 
         Ok(output_path)
     }

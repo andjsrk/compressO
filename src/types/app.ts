@@ -144,6 +144,8 @@ export type Image = {
   sizeInBytes?: number | null
   size?: string | null
   extension?: null | string
+  thumbnailPathRaw?: string | null
+  thumbnailPath?: string | null
   isCompressing?: boolean
   isProcessCompleted?: boolean
   compressedFile?: {
