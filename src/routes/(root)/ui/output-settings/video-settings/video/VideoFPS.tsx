@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Select from '@/components/Select'
+import Slider from '@/components/Slider'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
 import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
@@ -29,8 +30,10 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
       ? media[mediaIndex]
       : null
   const { config, fps } = video ?? {}
-  const { shouldEnableCustomFPS, customFPS } =
+  const { shouldEnableCustomFPS, customFPS, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
+
+  const isGifTarget = convertToExtension === 'gif'
 
   const handleSwitchToggle = useCallback(() => {
     if (
@@ -92,35 +95,57 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
       <AnimatePresence mode="wait">
         {shouldEnableCustomFPS ? (
           <motion.div {...slideDownTransition}>
-            <Select
-              fullWidth
-              label="Frames Per Second:"
-              className="block flex-shrink-0 rounded-2xl !mt-8"
-              selectedKeys={[String(initialFpsValue)!]}
-              size="sm"
-              value={String(initialFpsValue)}
-              onChange={(evt) => {
-                const value = evt?.target?.value
-                if (value && !Number.isNaN(+value)) {
-                  handleValueChange(+value)
-                }
-              }}
-              selectionMode="single"
-              isDisabled={!shouldEnableCustomFPS || shouldDisableInput}
-              classNames={{
-                label: '!text-gray-600 dark:!text-gray-400 text-xs',
-              }}
-            >
-              {FPS?.map((f) => (
-                <SelectItem
-                  key={String(f)}
-                  textValue={String(f)}
-                  className="flex justify-center items-center"
-                >
-                  {String(f)}
-                </SelectItem>
-              ))}
-            </Select>
+            {isGifTarget ? (
+              <Slider
+                label="Frames Per Second:"
+                size="lg"
+                step={1}
+                minValue={1}
+                maxValue={60}
+                value={initialFpsValue}
+                onChange={(val) => {
+                  if (!Array.isArray(val)) {
+                    handleValueChange(val)
+                  }
+                }}
+                isDisabled={!shouldEnableCustomFPS || shouldDisableInput}
+                className="w-full"
+                classNames={{
+                  label: 'text-gray-600 dark:text-gray-400 text-sm',
+                  value: 'text-xs',
+                }}
+              />
+            ) : (
+              <Select
+                fullWidth
+                label="Frames Per Second:"
+                className="block flex-shrink-0 rounded-2xl !mt-8"
+                selectedKeys={[String(initialFpsValue)!]}
+                size="sm"
+                value={String(initialFpsValue)}
+                onChange={(evt) => {
+                  const value = evt?.target?.value
+                  if (value && !Number.isNaN(+value)) {
+                    handleValueChange(+value)
+                  }
+                }}
+                selectionMode="single"
+                isDisabled={!shouldEnableCustomFPS || shouldDisableInput}
+                classNames={{
+                  label: '!text-gray-600 dark:!text-gray-400 text-xs',
+                }}
+              >
+                {FPS?.map((f) => (
+                  <SelectItem
+                    key={String(f)}
+                    textValue={String(f)}
+                    className="flex justify-center items-center"
+                  >
+                    {String(f)}
+                  </SelectItem>
+                ))}
+              </Select>
+            )}
           </motion.div>
         ) : null}
       </AnimatePresence>

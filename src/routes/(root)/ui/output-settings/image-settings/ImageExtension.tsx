@@ -55,7 +55,8 @@ const ImageExtension = ({ mediaIndex, disabled }: ImageExtensionProps) => {
     media.length === 0 ||
     isCompressing ||
     isProcessCompleted ||
-    isLoadingMediaFiles
+    isLoadingMediaFiles ||
+    image?.extension === 'gif'
 
   return (
     <Select

@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Switch from '@/components/Switch'
+import { ImageExtension } from '@/types/compression'
 import { appProxy, normalizeBatchMediaConfig } from '../../../-state'
 
 type ImageMetadataProps = {
@@ -15,7 +16,6 @@ const ImageMetadata = ({ mediaIndex }: ImageMetadataProps) => {
       isProcessCompleted,
       media,
       commonConfigForBatchCompression,
-      isLoadingMediaFiles,
     },
   } = useSnapshot(appProxy)
   const image =
@@ -52,7 +52,9 @@ const ImageMetadata = ({ mediaIndex }: ImageMetadataProps) => {
     media.length === 0 ||
     isCompressing ||
     isProcessCompleted ||
-    isLoadingMediaFiles
+    (['gif', 'svg'] as ImageExtension[]).includes(
+      image?.extension as ImageExtension,
+    )
 
   return (
     <Switch

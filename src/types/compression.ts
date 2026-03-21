@@ -2,7 +2,14 @@ import { AudioConfig, SubtitlesConfig, VideoMetadataConfig } from './app'
 import { FileMetadata } from './fs'
 
 export const extensions = {
-  video: { mp4: 'mp4', mov: 'mov', mkv: 'mkv', webm: 'webm', avi: 'avi' },
+  video: {
+    mp4: 'mp4',
+    mov: 'mov',
+    mkv: 'mkv',
+    webm: 'webm',
+    avi: 'avi',
+    gif: 'gif',
+  },
   image: {
     png: 'png',
     jpg: 'jpg',
@@ -12,6 +19,9 @@ export const extensions = {
     svg: 'svg',
   },
 } as const
+
+export type VideoExtension = keyof typeof extensions.video
+export type ImageExtension = keyof typeof extensions.image
 
 export const compressionPresets = {
   ironclad: 'ironclad',

@@ -57,14 +57,6 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
   const { subtitlesConfig, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
-  const shouldDisableInput =
-    media.length === 0 ||
-    isCompressing ||
-    isProcessCompleted ||
-    isLoadingMediaFiles
-
-  const isDisabledForWebm = convertToExtension === 'webm'
-
   const subtitles = subtitlesConfig?.subtitles ?? []
   const shouldEnableSubtitles = subtitlesConfig?.shouldEnableSubtitles ?? false
   const preserveExistingSubtitles =
@@ -277,6 +269,15 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
   const getDisplayLanguageCode = (code: string) => {
     return code === '' ? 'und' : code
   }
+
+  const shouldDisableInput =
+    media.length === 0 ||
+    isCompressing ||
+    isProcessCompleted ||
+    isLoadingMediaFiles ||
+    video?.config?.convertToExtension === 'gif'
+
+  const isDisabledForWebm = convertToExtension === 'webm'
 
   return (
     <>

@@ -1,8 +1,8 @@
 use crate::domain::{
     AudioConfig, BatchCompressionResult, BatchVideoCompressionProgress,
-    BatchVideoIndividualCompressionResult, CancelInProgressCompressionPayload, CustomEvents,
-    SubtitlesConfig, TauriEvents, VideoCompressionConfig, VideoCompressionProgress,
-    VideoCompressionResult, VideoMetadataConfig, VideoThumbnail, VideoTrimSegment,
+    BatchVideoIndividualCompressionResult, CustomEvents, SubtitlesConfig, VideoCompressionConfig,
+    VideoCompressionProgress, VideoCompressionResult, VideoMetadataConfig, VideoThumbnail,
+    VideoTrimSegment,
 };
 use crate::ffprobe::FFPROBE;
 use crate::fs::get_file_metadata;
@@ -12,10 +12,9 @@ use nanoid::nanoid;
 use serde_json::Value;
 use std::{
     path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Arc, Mutex},
+    process::Command,
+    sync::Arc,
 };
-use strum::EnumProperty;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_shell::ShellExt;
 
@@ -24,7 +23,7 @@ pub struct FFMPEG {
     assets_dir: PathBuf,
 }
 
-const EXTENSIONS: [&str; 5] = ["mp4", "mov", "webm", "avi", "mkv"];
+const EXTENSIONS: [&str; 6] = ["mp4", "mov", "webm", "avi", "mkv", "gif"];
 
 impl FFMPEG {
     pub fn new(app: &tauri::AppHandle) -> Result<Self, String> {
@@ -109,7 +108,13 @@ impl FFMPEG {
             None => nanoid!(),
         };
 
-        let file_name = format!("{}.{}", video_id, convert_to_extension);
+        let is_gif_target = convert_to_extension == "gif";
+
+        let file_name = if is_gif_target {
+            format!("{}.mp4", video_id)
+        } else {
+            format!("{}.{}", video_id, convert_to_extension)
+        };
 
         let output_file: PathBuf = [self.assets_dir.clone(), PathBuf::from(&file_name)]
             .iter()
@@ -123,7 +128,7 @@ impl FFMPEG {
         // Track input indices for mapping
         let mut input_index: usize = 1; // 0 is video, 1+ are thumbnails/subtitles
 
-        if convert_to_extension != "webm" {
+        if !is_gif_target && convert_to_extension != "webm" {
             if let Some(thumb_path) = custom_thumbnail_path {
                 if thumb_path.len() > 0 {
                     cmd_args.extend_from_slice(&["-i", thumb_path]);
@@ -132,34 +137,35 @@ impl FFMPEG {
             }
         }
 
-        let subtitle_input_indices: Vec<(usize, String)> = if convert_to_extension != "webm" {
-            if let Some(subs_config) = subtitles_config {
-                if subs_config.should_enable_subtitles.unwrap_or(false) {
-                    let mut indices = Vec::new();
-                    for sub in &subs_config.subtitles {
-                        if let Some(ref sub_path) = sub.subtitle_path {
-                            if sub_path.len() > 0 {
-                                cmd_args.extend_from_slice(&["-i", sub_path]);
-                                let lang = if sub.language == "und" {
-                                    String::new()
-                                } else {
-                                    sub.language.clone()
-                                };
-                                indices.push((input_index, lang));
-                                input_index += 1;
+        let subtitle_input_indices: Vec<(usize, String)> =
+            if !is_gif_target && convert_to_extension != "webm" {
+                if let Some(subs_config) = subtitles_config {
+                    if subs_config.should_enable_subtitles.unwrap_or(false) {
+                        let mut indices = Vec::new();
+                        for sub in &subs_config.subtitles {
+                            if let Some(ref sub_path) = sub.subtitle_path {
+                                if sub_path.len() > 0 {
+                                    cmd_args.extend_from_slice(&["-i", sub_path]);
+                                    let lang = if sub.language == "und" {
+                                        String::new()
+                                    } else {
+                                        sub.language.clone()
+                                    };
+                                    indices.push((input_index, lang));
+                                    input_index += 1;
+                                }
                             }
                         }
+                        indices
+                    } else {
+                        Vec::new()
                     }
-                    indices
                 } else {
                     Vec::new()
                 }
             } else {
                 Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
+            };
 
         // Preserve existing metadata
         cmd_args.extend_from_slice(&["-map_metadata", "0"]);
@@ -177,16 +183,23 @@ impl FFMPEG {
             Some(preset) => match preset {
                 "thunderbolt" => cmd_args,
                 _ => {
-                    cmd_args.extend_from_slice(&[
-                        "-pix_fmt:v:0",
-                        "yuv420p",
-                        "-b:v:0",
-                        "0",
-                        "-movflags",
-                        "+faststart",
-                        "-preset",
-                        "slow",
-                    ]);
+                    if is_gif_target {
+                        cmd_args.extend_from_slice(&[
+                            "-preset",
+                            "ultrafast", // Fastest encoding for temp file
+                        ]);
+                    } else {
+                        cmd_args.extend_from_slice(&[
+                            "-pix_fmt:v:0",
+                            "yuv420p",
+                            "-b:v:0",
+                            "0",
+                            "-movflags",
+                            "+faststart",
+                            "-preset",
+                            "slow",
+                        ]);
+                    }
                     cmd_args
                 }
             },
@@ -201,7 +214,9 @@ impl FFMPEG {
                     _ => "libx264".to_string(),
                 }
             }
-            if let Some(codec) = video_codec {
+            if is_gif_target {
+                default_codec(convert_to_extension)
+            } else if let Some(codec) = video_codec {
                 codec.to_string()
             } else {
                 if preset_name.is_none() {
@@ -222,16 +237,18 @@ impl FFMPEG {
         cmd_args.extend_from_slice(&["-c:v:0", output_codec.as_str()]);
 
         // Quality
-        let max_crf: u16 = 36;
-        let min_crf: u16 = 24;
-        let default_crf: u16 = 28;
-        let compression_quality = if (0..=100).contains(&quality) {
-            let diff = (max_crf - min_crf) - ((max_crf - min_crf) * quality) / 100;
-            format!("{}", min_crf + diff)
-        } else {
-            format!("{default_crf}")
+        let compression_quality: String = {
+            let default_crf: u16 = 28;
+            let max_crf: u16 = 36;
+            let min_crf: u16 = 24;
+            if (0..=100).contains(&quality) {
+                let diff = (max_crf - min_crf) - ((max_crf - min_crf) * quality) / 100;
+                format!("{}", min_crf + diff)
+            } else {
+                format!("{default_crf}")
+            }
         };
-        if preset_name.is_some() || (0..=100).contains(&quality) {
+        if preset_name.is_some() || (0..=100).contains(&quality) || is_gif_target {
             cmd_args.extend_from_slice(&["-crf", compression_quality.as_str()]);
         }
 
@@ -507,51 +524,54 @@ impl FFMPEG {
 
         cmd_args.extend(audio_args_owned.iter().map(|s| s.as_str()));
 
-        if audio_config.volume == 0 {
+        if audio_config.volume == 0 || is_gif_target {
             cmd_args.push("-an");
         }
 
         let mut metadata_args: Vec<String> = Vec::new();
-        if let Some(metadata) = metadata_config {
-            if let Some(ref title) = metadata.title {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("title={}", title.trim()));
-            }
-            if let Some(ref artist) = metadata.artist {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("artist={}", artist.trim()));
-            }
-            if let Some(ref album) = metadata.album {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("album={}", album.trim()));
-            }
-            if let Some(ref year) = metadata.year {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("date={}", year.trim()));
-            }
-            if let Some(ref comment) = metadata.comment {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("comment={}", comment.trim()));
-            }
-            if let Some(ref description) = metadata.description {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("description={}", description.trim()));
-            }
-            if let Some(ref synopsis) = metadata.synopsis {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("synopsis={}", synopsis.trim()));
-            }
-            if let Some(ref genre) = metadata.genre {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("genre={}", genre.trim()));
-            }
-            if let Some(ref copyright) = metadata.copyright {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("copyright={}", copyright.trim()));
-            }
-            if let Some(ref creation_time) = metadata.creation_time {
-                metadata_args.push("-metadata".to_string());
-                metadata_args.push(format!("creation_time={}", creation_time.trim()));
+
+        if !is_gif_target {
+            if let Some(metadata) = metadata_config {
+                if let Some(ref title) = metadata.title {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("title={}", title.trim()));
+                }
+                if let Some(ref artist) = metadata.artist {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("artist={}", artist.trim()));
+                }
+                if let Some(ref album) = metadata.album {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("album={}", album.trim()));
+                }
+                if let Some(ref year) = metadata.year {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("date={}", year.trim()));
+                }
+                if let Some(ref comment) = metadata.comment {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("comment={}", comment.trim()));
+                }
+                if let Some(ref description) = metadata.description {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("description={}", description.trim()));
+                }
+                if let Some(ref synopsis) = metadata.synopsis {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("synopsis={}", synopsis.trim()));
+                }
+                if let Some(ref genre) = metadata.genre {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("genre={}", genre.trim()));
+                }
+                if let Some(ref copyright) = metadata.copyright {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("copyright={}", copyright.trim()));
+                }
+                if let Some(ref creation_time) = metadata.creation_time {
+                    metadata_args.push("-metadata".to_string());
+                    metadata_args.push(format!("creation_time={}", creation_time.trim()));
+                }
             }
         }
 
@@ -569,10 +589,25 @@ impl FFMPEG {
         let mut subtitle_args_owned: Vec<String> = Vec::new();
         let mut subtitle_index = 0usize;
 
-        if has_existing_subtitles {
-            for idx in 0..existing_subtitle_count {
+        if !is_gif_target {
+            if has_existing_subtitles {
+                for idx in 0..existing_subtitle_count {
+                    subtitle_args_owned.push("-map".to_string());
+                    subtitle_args_owned.push(format!("0:s:{}", idx));
+
+                    let subtitle_codec = match convert_to_extension {
+                        "mkv" => "srt",
+                        _ => "mov_text",
+                    };
+                    subtitle_args_owned.push(format!("-c:s:{}", subtitle_index));
+                    subtitle_args_owned.push(subtitle_codec.to_string());
+                    subtitle_index += 1;
+                }
+            }
+
+            for (sub_input_idx, language) in subtitle_input_indices.iter() {
                 subtitle_args_owned.push("-map".to_string());
-                subtitle_args_owned.push(format!("0:s:{}", idx));
+                subtitle_args_owned.push(format!("{}:s", sub_input_idx));
 
                 let subtitle_codec = match convert_to_extension {
                     "mkv" => "srt",
@@ -580,30 +615,17 @@ impl FFMPEG {
                 };
                 subtitle_args_owned.push(format!("-c:s:{}", subtitle_index));
                 subtitle_args_owned.push(subtitle_codec.to_string());
+
+                if !language.is_empty() {
+                    subtitle_args_owned.push(format!("-metadata:s:s:{}", subtitle_index));
+                    subtitle_args_owned.push(format!("language={}", language));
+                }
                 subtitle_index += 1;
             }
         }
-
-        for (sub_input_idx, language) in subtitle_input_indices.iter() {
-            subtitle_args_owned.push("-map".to_string());
-            subtitle_args_owned.push(format!("{}:s", sub_input_idx));
-
-            let subtitle_codec = match convert_to_extension {
-                "mkv" => "srt",
-                _ => "mov_text",
-            };
-            subtitle_args_owned.push(format!("-c:s:{}", subtitle_index));
-            subtitle_args_owned.push(subtitle_codec.to_string());
-
-            if !language.is_empty() {
-                subtitle_args_owned.push(format!("-metadata:s:s:{}", subtitle_index));
-                subtitle_args_owned.push(format!("language={}", language));
-            }
-            subtitle_index += 1;
-        }
         cmd_args.extend(subtitle_args_owned.iter().map(|s| s.as_str()));
 
-        if custom_thumbnail_path.is_some() && convert_to_extension != "webm" {
+        if !is_gif_target && custom_thumbnail_path.is_some() && convert_to_extension != "webm" {
             if let Some(thumb_path) = custom_thumbnail_path {
                 if thumb_path.len() > 0 {
                     cmd_args.push("-c:v:1");
@@ -666,6 +688,33 @@ impl FFMPEG {
 
         if !result.success() {
             return Err("Video compression failed".to_string());
+        }
+
+        if convert_to_extension == "gif" {
+            log::info!("[ffmpeg] Converting processed video to GIF");
+
+            let temp_video_path = output_file.to_string_lossy().to_string();
+
+            let gif_output_path = self
+                .convert_video_to_gif(&temp_video_path, quality as u8, video_id, dimensions, fps)
+                .await?;
+
+            std::fs::remove_file(&temp_video_path).ok();
+            log::info!(
+                "[ffmpeg] Removed temporary video file: {:?}",
+                temp_video_path
+            );
+
+            let gif_path = gif_output_path.to_string_lossy().to_string();
+            let file_metadata = get_file_metadata(&gif_path);
+            let gif_file_name = format!("{}.gif", video_id);
+
+            return Ok(VideoCompressionResult {
+                video_id: video_id.to_owned(),
+                file_name: gif_file_name,
+                file_path: gif_path,
+                file_metadata: file_metadata.ok(),
+            });
         }
 
         let file_metadata = get_file_metadata(&output_file.to_string_lossy().to_string());
@@ -933,7 +982,7 @@ impl FFMPEG {
         Ok(output_path.to_string())
     }
 
-    pub fn convert_video_to_gif(
+    pub async fn convert_video_to_gif(
         &mut self,
         video_path: &str,
         quality: u8,
@@ -951,141 +1000,60 @@ impl FFMPEG {
             .ok_or("Invalid output path")?
             .to_string();
 
-        // Setup cancellation support (ID for cancelling the conversion)
-        let gifski_id = format!("{}", video_id);
+        // Command is ffmpeg -i video.mp4 -f yuv4mpegpipe - | gifski -o anim.gif -
 
-        // Get window for event listeners
-        let window = self
-            .app
-            .get_webview_window("main")
-            .ok_or("Could not attach to main window")?;
-
-        // Use Arc for shared cancellation state
-        let should_cancel = Arc::new(Mutex::new(false));
-        let should_cancel_clone = should_cancel.clone();
-
-        // Setup cancellation listener
-        let cancel_event_id = window.listen(CustomEvents::CancelInProgressCompression.as_ref(), {
-            let gifski_id = gifski_id.clone();
-            let should_cancel = should_cancel_clone.clone();
-            move |evt| {
-                let payload_str = evt.payload();
-                if let Ok(payload) =
-                    serde_json::from_str::<CancelInProgressCompressionPayload>(payload_str)
-                {
-                    if payload.ids.iter().any(|id| id == &gifski_id) {
-                        log::info!("GIF conversion requested to cancel");
-                        let mut flag = should_cancel.lock().unwrap();
-                        *flag = true;
-                    }
-                }
-            }
-        });
-
-        // Setup window cleanup listener
-        let destroy_event_id = window.listen(TauriEvents::Destroyed.get_str("key").unwrap(), {
-            move |_| {
-                log::info!("[tauri] window destroyed, GIF conversion will terminate");
-            }
-        });
-
-        // Build ffmpeg command
-        let ffmpeg_args = vec!["-i", video_path, "-f", "yuv4mpegpipe", "-"];
         let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
-        ffmpeg_cmd.args(&ffmpeg_args);
+        ffmpeg_cmd.args(["-i", video_path, "-f", "yuv4mpegpipe", "-"]);
 
-        // Spawn ffmpeg with piped stdout
-        let mut ffmpeg_child = ffmpeg_cmd
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
-
-        let ffmpeg_stdout = ffmpeg_child
-            .stdout
-            .take()
-            .ok_or("Failed to get ffmpeg stdout")?;
-
-        // Build gifski command
         let gifski_quality = quality.clamp(1, 100);
-        let gifski_quality_str = gifski_quality.to_string();
-        let mut gifski_args: Vec<String> = vec!["-Q".to_string(), gifski_quality_str];
+        let mut gifski_args: Vec<String> = vec!["-Q".to_string(), gifski_quality.to_string()];
 
         if let Some(fps_val) = fps {
-            gifski_args.push("-r".to_string());
-            gifski_args.push(fps_val.to_string());
+            gifski_args.extend(["-r".to_string(), fps_val.to_string()]);
         }
 
         if let Some((width, height)) = dimensions {
-            gifski_args.push("-W".to_string());
-            gifski_args.push(width.to_string());
-            gifski_args.push("-H".to_string());
-            gifski_args.push(height.to_string());
+            gifski_args.extend([
+                "-W".to_string(),
+                width.to_string(),
+                "-H".to_string(),
+                height.to_string(),
+            ]);
         }
 
-        gifski_args.push("-o".to_string());
-        gifski_args.push(output_path_str.clone());
-        gifski_args.push("-".to_string());
+        gifski_args.extend(["-o".to_string(), output_path_str, "-".to_string()]);
 
         let gifski_args_refs: Vec<&str> = gifski_args.iter().map(|s| s.as_str()).collect();
 
-        log::info!(
-            "[image] video to gif final command: {:?} | {:?}",
-            ffmpeg_args,
-            gifski_args_refs
-        );
-
         let image_compressor = ImageCompressor::new(&self.app)?;
-
         let mut gifski_cmd = image_compressor
             .get_gifski_command()
             .map_err(|e| format!("Gifski command error: {}", e))?;
+        gifski_cmd.args(&gifski_args_refs);
 
-        // Spawn gifski with ffmpeg stdout as stdin
-        let mut gifski_child = gifski_cmd
-            .args(&gifski_args_refs)
-            .stdin(ffmpeg_stdout)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to run gifski: {}", e))?;
+        log::info!(
+            "[ffmpeg] final ffmpeg -> gifski args: {:?} | {:?}",
+            ffmpeg_cmd.get_args(),
+            gifski_cmd.get_args()
+        );
 
-        // Check if cancelled before waiting
-        if *should_cancel.lock().unwrap() {
-            ffmpeg_child.kill().ok();
-            gifski_child.kill().ok();
-            window.unlisten(destroy_event_id);
-            window.unlisten(cancel_event_id);
-            return Err("CANCELLED".to_string());
+        let cancel_callback = Arc::new(|| {
+            log::info!("CANCELLED Video to GIF conversion");
+        });
+
+        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+            .commands(vec![ffmpeg_cmd, gifski_cmd])
+            .with_piped()
+            .with_cancel_support(vec![video_id.to_string()], Some(cancel_callback))
+            .build()?;
+
+        let result = executor.spawn_and_wait().await?;
+
+        if !result.success() {
+            return Err("Video to GIF conversion failed".to_string());
         }
 
-        // Wait for both processes
-        let ffmpeg_result = ffmpeg_child.wait();
-        let gifski_result = gifski_child.wait();
-
-        // Cleanup event listeners
-        window.unlisten(destroy_event_id);
-        window.unlisten(cancel_event_id);
-
-        // Check for cancellation
-        if *should_cancel.lock().unwrap() {
-            return Err("CANCELLED".to_string());
-        }
-
-        match (ffmpeg_result, gifski_result) {
-            (Ok(ffmpeg_status), Ok(gifski_status)) => {
-                if ffmpeg_status.success() && gifski_status.success() {
-                    Ok(output_path)
-                } else {
-                    Err(format!(
-                        "Video to GIF conversion failed - ffmpeg: {:?}, gifski: {:?}",
-                        ffmpeg_status, gifski_status
-                    ))
-                }
-            }
-            (Err(ffmpeg_err), _) => Err(format!("ffmpeg error: {}", ffmpeg_err)),
-            (_, Err(gifski_err)) => Err(format!("gifski error: {}", gifski_err)),
-        }
+        Ok(output_path)
     }
 
     fn build_ffmpeg_filters(&self, actions: &Vec<Value>) -> String {

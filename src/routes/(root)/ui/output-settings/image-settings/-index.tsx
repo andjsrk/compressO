@@ -2,7 +2,7 @@ import { Divider } from '@heroui/react'
 import { useSnapshot } from 'valtio'
 
 import { appProxy } from '@/routes/(root)/-state'
-import { extensions } from '@/types/compression'
+import { ImageExtension as ImageExtensionType } from '@/types/compression'
 import CompressionQuality from './CompressionQuality'
 import ImageExtension from './ImageExtension'
 import ImageMetadata from './ImageMetadata'
@@ -11,8 +11,6 @@ import SvgScaleFactor from './SvgScaleFactor'
 type ImageSettingsProps = {
   mediaIndex: number
 }
-
-type ImageExtension = keyof typeof extensions.image
 
 function ImageSettings({ mediaIndex }: ImageSettingsProps) {
   const {
@@ -25,20 +23,16 @@ function ImageSettings({ mediaIndex }: ImageSettingsProps) {
 
   return (
     <div className="space-y-3 my-3">
-      {!(['svg'] as ImageExtension[]).includes(
-        image?.extension as ImageExtension,
-      ) ? (
-        <div>
-          <CompressionQuality mediaIndex={mediaIndex} />
-          <Divider className="my-3" />
-        </div>
-      ) : null}
+      <div>
+        <CompressionQuality mediaIndex={mediaIndex} />
+        <Divider className="my-3" />
+      </div>
 
-      {(['svg'] as ImageExtension[]).includes(
-        image?.extension as ImageExtension,
+      {(['svg'] as ImageExtensionType[]).includes(
+        image?.extension as ImageExtensionType,
       ) &&
-      (['png', 'jpg', 'jpeg', 'webp'] as ImageExtension[]).includes(
-        image?.config?.convertToExtension as ImageExtension,
+      (['png', 'jpg', 'jpeg', 'webp'] as ImageExtensionType[]).includes(
+        image?.config?.convertToExtension as ImageExtensionType,
       ) ? (
         <div>
           <SvgScaleFactor mediaIndex={mediaIndex} />
@@ -46,22 +40,14 @@ function ImageSettings({ mediaIndex }: ImageSettingsProps) {
         </div>
       ) : null}
 
-      {!(['gif', 'svg'] as ImageExtension[]).includes(
-        image?.extension as ImageExtension,
-      ) ? (
-        <div>
-          <ImageMetadata mediaIndex={mediaIndex} />
-          <Divider className="my-3" />
-        </div>
-      ) : null}
+      <div>
+        <ImageMetadata mediaIndex={mediaIndex} />
+        <Divider className="my-3" />
+      </div>
 
-      {!(['gif'] as ImageExtension[]).includes(
-        image?.extension as ImageExtension,
-      ) ? (
-        <div className="!mt-8">
-          <ImageExtension mediaIndex={mediaIndex} />
-        </div>
-      ) : null}
+      <div className="!mt-8">
+        <ImageExtension mediaIndex={mediaIndex} />
+      </div>
     </div>
   )
 }

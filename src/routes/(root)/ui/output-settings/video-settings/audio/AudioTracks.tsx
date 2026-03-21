@@ -152,7 +152,8 @@ function AudioTracks({ mediaIndex }: AudioTracksProps) {
     isProcessCompleted ||
     isLoadingMediaFiles ||
     hasNoAudio ||
-    audioConfig?.volume === 0
+    audioConfig?.volume === 0 ||
+    video?.config?.convertToExtension === 'gif'
 
   return (
     <>

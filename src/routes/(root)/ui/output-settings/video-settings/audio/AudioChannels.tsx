@@ -280,7 +280,8 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles ||
-    audioConfig?.volume === 0
+    audioConfig?.volume === 0 ||
+    video?.config?.convertToExtension === 'gif'
 
   const hasNoAudio = videoInfoRaw?.audioStreams?.length === 0
 

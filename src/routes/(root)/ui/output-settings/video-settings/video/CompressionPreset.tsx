@@ -91,7 +91,8 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
     media.length === 0 ||
     isCompressing ||
     isProcessCompleted ||
-    isLoadingMediaFiles
+    isLoadingMediaFiles ||
+    video?.config?.convertToExtension === 'gif'
 
   return (
     <>

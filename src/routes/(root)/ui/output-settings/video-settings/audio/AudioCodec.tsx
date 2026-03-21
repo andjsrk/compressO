@@ -177,7 +177,8 @@ function AudioCodec({ mediaIndex }: AudioCodecProps) {
     isProcessCompleted ||
     isLoadingMediaFiles ||
     hasNoAudio ||
-    audioConfig?.volume === 0
+    audioConfig?.volume === 0 ||
+    video?.config?.convertToExtension === 'gif'
 
   const initialCodecValue = customAudioCodec ?? '-'
 

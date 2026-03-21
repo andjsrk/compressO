@@ -114,7 +114,8 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
     media.length === 0 ||
     isCompressing ||
     isProcessCompleted ||
-    isLoadingMediaFiles
+    isLoadingMediaFiles ||
+    image?.extension === 'svg'
 
   return (
     <>

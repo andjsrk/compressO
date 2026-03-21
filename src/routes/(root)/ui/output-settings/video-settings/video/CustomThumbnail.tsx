@@ -123,7 +123,8 @@ function CustomThumbnail({ mediaIndex }: CustomThumbnailProps) {
     media.length === 0 ||
     isCompressing ||
     isProcessCompleted ||
-    isLoadingMediaFiles
+    isLoadingMediaFiles ||
+    video?.config?.convertToExtension === 'gif'
 
   return (
     <>

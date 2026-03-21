@@ -116,7 +116,8 @@ function AudioBitrate({ mediaIndex }: AudioBitrateProps) {
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles ||
-    audioConfig?.volume === 0
+    audioConfig?.volume === 0 ||
+    video?.config?.convertToExtension === 'gif'
 
   const hasNoAudio = videoInfoRaw?.audioStreams?.length === 0
   const currentValue = audioConfig?.bitrate ?? 128

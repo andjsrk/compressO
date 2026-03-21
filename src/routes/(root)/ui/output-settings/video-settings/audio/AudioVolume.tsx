@@ -108,7 +108,8 @@ function AudioVolume({ mediaIndex }: AudioVolumeProps) {
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles ||
-    hasNoAudio
+    hasNoAudio ||
+    video?.config?.convertToExtension === 'gif'
 
   return (
     <>

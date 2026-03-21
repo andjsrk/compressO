@@ -22,8 +22,8 @@ import VideoTrimmerTimeline, {
   VideoTrimmerTimelineRef,
 } from '@/ui/VideoTrimmerTimeline'
 import { formatDuration } from '@/utils/string'
-import { appProxy } from '../-state'
 import VideoTransformer from './VideoTransformer'
+import { appProxy } from '../-state'
 
 function pickRandomTimestamp(durationMs: number): string {
   const durationSeconds = durationMs / 1000
@@ -284,7 +284,12 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
   return (
     <div className="relative w-full flex items-center justify-center">
       <div className="relative w-full px-4">
-        {mediaType === 'video' && previewMode === 'video' && mediaPath ? (
+        {mediaType === 'video' &&
+        previewMode === 'video' &&
+        mediaPath &&
+        (mediaFile?.isProcessCompleted
+          ? mediaFile?.compressedFile?.extension !== 'gif'
+          : true) ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

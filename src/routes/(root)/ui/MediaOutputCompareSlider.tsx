@@ -61,6 +61,7 @@ function MediaOutputCompareSlider({
             src={src}
             alt={`compare image ${options?.isOriginal ? 0 : 1}`}
             className="max-h-[65vh] object-contain"
+            // TODO: Figure this out
             {...(mediaFile?.dimensions?.width
               ? { width: mediaFile?.dimensions?.width }
               : {})}
@@ -110,9 +111,10 @@ function MediaOutputCompareSlider({
           disablePlayPauseControlAtCenter
           disablePlayPauseViaContainerClick
           containerClassName="w-full h-full"
-          {...(mediaFile?.dimensions?.width
-            ? { width: mediaFile?.dimensions?.width }
-            : {})}
+          // TODO: Figure this out. This overflows the container
+          // {...(mediaFile?.dimensions?.width
+          //   ? { width: mediaFile?.dimensions?.width }
+          //   : {})}
           style={{
             width: '100%',
             minWidth: '50vw',
@@ -151,9 +153,19 @@ function MediaOutputCompareSlider({
           }
           itemTwo={
             mediaFile?.type === 'video'
-              ? renderVideo(`${mediaFile?.compressedFile?.path!}?id={${id}}`, {
-                  isOriginal: false,
-                })
+              ? mediaFile?.compressedFile?.extension === 'gif'
+                ? renderImage(
+                    `${mediaFile?.compressedFile?.path!}?id={${id}}`,
+                    {
+                      isOriginal: false,
+                    },
+                  )
+                : renderVideo(
+                    `${mediaFile?.compressedFile?.path!}?id={${id}}`,
+                    {
+                      isOriginal: false,
+                    },
+                  )
               : renderImage(`${mediaFile?.compressedFile?.path!}?id={${id}}`, {
                   isOriginal: false,
                 })

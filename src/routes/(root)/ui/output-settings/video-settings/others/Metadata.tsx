@@ -141,7 +141,8 @@ function Metadata({ mediaIndex }: MetadataProps) {
     media.length === 0 ||
     isCompressing ||
     isProcessCompleted ||
-    isLoadingMediaFiles
+    isLoadingMediaFiles ||
+    video?.config?.convertToExtension === 'gif'
 
   return (
     <>
