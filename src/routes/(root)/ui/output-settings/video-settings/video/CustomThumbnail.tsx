@@ -11,6 +11,7 @@ import Icon from '@/components/Icon'
 import Image from '@/components/Image'
 import Switch from '@/components/Switch'
 import TextInput from '@/components/TextInput'
+import { ImageExtension } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
 import { cn } from '@/utils/tailwind'
 import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
@@ -124,7 +125,9 @@ function CustomThumbnail({ mediaIndex }: CustomThumbnailProps) {
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles ||
-    video?.config?.convertToExtension === 'gif'
+    (['webm', 'gif'] as ImageExtension[]).includes(
+      convertToExtension as ImageExtension,
+    )
 
   return (
     <>
@@ -151,7 +154,7 @@ function CustomThumbnail({ mediaIndex }: CustomThumbnailProps) {
               label=""
               placeholder="No thumbnail selected"
               value={thumbnailFileName ?? 'No thumbnail selected'}
-              isDisabled={shouldDisableInput || convertToExtension === 'webm'}
+              isDisabled={shouldDisableInput}
               isReadOnly
               classNames={{
                 input: 'text-xs',
@@ -162,9 +165,7 @@ function CustomThumbnail({ mediaIndex }: CustomThumbnailProps) {
               <div
                 className={cn(
                   'flex justify-center items-center w-full',
-                  shouldDisableInput || convertToExtension === 'webm'
-                    ? 'opacity-50'
-                    : '',
+                  shouldDisableInput ? 'opacity-50' : '',
                 )}
               >
                 <Image

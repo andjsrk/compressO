@@ -36,7 +36,7 @@ function Metadata({ mediaIndex }: MetadataProps) {
       ? media[mediaIndex]
       : null
   const { config } = video ?? {}
-  const { shouldPreserveMetadata, metadataConfig } =
+  const { shouldPreserveMetadata, metadataConfig, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
   const updateMetadataField = useCallback(
@@ -142,7 +142,7 @@ function Metadata({ mediaIndex }: MetadataProps) {
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles ||
-    video?.config?.convertToExtension === 'gif'
+    convertToExtension === 'gif'
 
   return (
     <>

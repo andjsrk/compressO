@@ -154,7 +154,7 @@ function VideoCodec({ mediaIndex }: VideoCodecProps) {
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles ||
-    video?.config?.convertToExtension === 'gif'
+    convertToExtension === 'gif'
 
   const initialCodecValue = customVideoCodec ?? '-'
 

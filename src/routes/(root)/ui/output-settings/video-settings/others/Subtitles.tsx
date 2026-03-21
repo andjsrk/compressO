@@ -275,7 +275,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles ||
-    video?.config?.convertToExtension === 'gif'
+    convertToExtension === 'gif'
 
   const isDisabledForWebm = convertToExtension === 'webm'
 

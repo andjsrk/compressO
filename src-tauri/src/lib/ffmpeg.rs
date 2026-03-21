@@ -7,8 +7,9 @@ use crate::domain::{
 use crate::ffprobe::FFPROBE;
 use crate::fs::get_file_metadata;
 use crate::image::ImageCompressor;
-use crate::media_process::{CancelCallback, FfmpegProgressCallback, MediaProcessExecutorBuilder};
+use crate::media_process::{CancelCallback, MediaProcessExecutorBuilder};
 use nanoid::nanoid;
+use regex::Regex;
 use serde_json::Value;
 use std::{
     path::{Path, PathBuf},
@@ -657,20 +658,27 @@ impl FFMPEG {
         let app_clone = self.app.clone();
         let video_id_for_progress = video_id.to_string();
         let batch_id_for_progress = batch_id.clone();
-        let progress_callback: FfmpegProgressCallback = Arc::new(move |current_duration| {
-            if let Some(duration) = current_duration {
-                let video_progress = VideoCompressionProgress {
-                    video_id: video_id_for_progress.clone(),
-                    batch_id: batch_id_for_progress.clone(),
-                    current_duration: duration,
-                };
-                if let Some(window) = app_clone.get_webview_window("main") {
-                    window
-                        .emit(
-                            CustomEvents::VideoCompressionProgress.as_ref(),
-                            video_progress,
-                        )
-                        .ok();
+        let re = Regex::new(r"out_time=(?P<out_time>.*?)\n").unwrap();
+
+        let stdout_callback = Arc::new(move |_process_index: usize, stdout_line: String| {
+            if let Some(cap) = re.captures(&stdout_line) {
+                if let Some(out_time) = cap.name("out_time") {
+                    let duration = out_time.as_str();
+                    if !duration.is_empty() {
+                        let video_progress = VideoCompressionProgress {
+                            video_id: video_id_for_progress.clone(),
+                            batch_id: batch_id_for_progress.clone(),
+                            current_duration: duration.to_string(),
+                        };
+                        if let Some(window) = app_clone.get_webview_window("main") {
+                            window
+                                .emit(
+                                    CustomEvents::VideoCompressionProgress.as_ref(),
+                                    video_progress,
+                                )
+                                .ok();
+                        }
+                    }
                 }
             }
         });
@@ -681,7 +689,7 @@ impl FFMPEG {
                 vec![video_id.to_string(), batch_id.clone()],
                 Some(cancel_callback),
             )
-            .with_ffmpeg_progress_callback(progress_callback)
+            .with_stdout_callback(stdout_callback)
             .build()?;
 
         let result = executor.spawn_and_wait().await?;
@@ -1000,7 +1008,22 @@ impl FFMPEG {
             .ok_or("Invalid output path")?
             .to_string();
 
-        // Command is ffmpeg -i video.mp4 -f yuv4mpegpipe - | gifski -o anim.gif -
+        let video_duration_seconds = {
+            let mut ffprobe = FFPROBE::new(&self.app)?;
+            let video_info = ffprobe.get_video_basic_info(video_path).await?;
+            video_info.duration.unwrap_or(0.0)
+        };
+
+        let video_duration_offset = if video_duration_seconds > 0.0 {
+            let hours = (video_duration_seconds / 3600.0) as u32;
+            let minutes = ((video_duration_seconds % 3600.0) / 60.0) as u32;
+            let seconds = video_duration_seconds % 60.0;
+            format!("{:02}:{:02}:{:05.2}", hours, minutes, seconds)
+        } else {
+            String::from("00:00:00.00")
+        };
+
+        log::info!("dimensions {:?}", dimensions);
 
         let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
         ffmpeg_cmd.args(["-i", video_path, "-f", "yuv4mpegpipe", "-"]);
@@ -1041,10 +1064,49 @@ impl FFMPEG {
             log::info!("CANCELLED Video to GIF conversion");
         });
 
+        let app_clone = self.app.clone();
+        let video_id_for_progress = video_id.to_string();
+        let video_duration_offset_clone = video_duration_offset.clone();
+        let time_regex = Regex::new(r"time=(?P<time>[\d:.]+)").unwrap();
+
+        let stderr_callback = Arc::new(move |process_index: usize, stderr_line: String| {
+            if process_index == 0 {
+                if let Some(cap) = time_regex.captures(&stderr_line) {
+                    if let Some(time) = cap.name("time") {
+                        let current_duration = time.as_str();
+                        if !current_duration.is_empty() {
+                            let combined_duration = if let Some(sum) =
+                                add_ffmpeg_times(&video_duration_offset_clone, current_duration)
+                            {
+                                sum
+                            } else {
+                                current_duration.to_string()
+                            };
+
+                            let video_progress = VideoCompressionProgress {
+                                video_id: video_id_for_progress.clone(),
+                                batch_id: String::new(),
+                                current_duration: combined_duration,
+                            };
+                            if let Some(window) = app_clone.get_webview_window("main") {
+                                window
+                                    .emit(
+                                        CustomEvents::VideoCompressionProgress.as_ref(),
+                                        video_progress,
+                                    )
+                                    .ok();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
             .commands(vec![ffmpeg_cmd, gifski_cmd])
             .with_piped()
             .with_cancel_support(vec![video_id.to_string()], Some(cancel_callback))
+            .with_stderr_callback(stderr_callback)
             .build()?;
 
         let result = executor.spawn_and_wait().await?;
@@ -1102,4 +1164,29 @@ impl FFMPEG {
 
         filters.join(",")
     }
+}
+
+/// Adds two FFmpeg time strings in format "HH:MM:SS.MM" and returns the sum in the same format
+fn add_ffmpeg_times(time1: &str, time2: &str) -> Option<String> {
+    let parse_time = |time_str: &str| -> Option<f64> {
+        let parts: Vec<&str> = time_str.split(':').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+        let hours: f64 = parts[0].parse().ok()?;
+        let minutes: f64 = parts[1].parse().ok()?;
+        let seconds: f64 = parts[2].parse().ok()?;
+        Some(hours * 3600.0 + minutes * 60.0 + seconds)
+    };
+
+    let time1_seconds = parse_time(time1)?;
+    let time2_seconds = parse_time(time2)?;
+    let total_seconds = time1_seconds + time2_seconds;
+
+    // Convert back to HH:MM:SS.MM format
+    let hours = (total_seconds / 3600.0) as u32;
+    let minutes = ((total_seconds % 3600.0) / 60.0) as u32;
+    let seconds = total_seconds % 60.0;
+
+    Some(format!("{:02}:{:02}:{:05.2}", hours, minutes, seconds))
 }

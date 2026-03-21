@@ -29,7 +29,7 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
       ? media[mediaIndex]
       : null
   const { config, videoInfoRaw } = video ?? {}
-  const { audioConfig, shouldEnableCustomChannel } =
+  const { audioConfig, shouldEnableCustomChannel, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
   const handleSwitchToggle = useCallback(() => {
@@ -281,7 +281,7 @@ function AudioChannels({ mediaIndex }: AudioChannelsProps) {
     isProcessCompleted ||
     isLoadingMediaFiles ||
     audioConfig?.volume === 0 ||
-    video?.config?.convertToExtension === 'gif'
+    convertToExtension === 'gif'
 
   const hasNoAudio = videoInfoRaw?.audioStreams?.length === 0
 

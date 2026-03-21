@@ -80,7 +80,7 @@ function CompressionProgress() {
                     const targetVideoDuration =
                       media[targetMediaIndex].videoDuration ?? 0
 
-                    const videoDurationInMilliseconds =
+                    let videoDurationInMilliseconds =
                       (media[targetMediaIndex]?.config?.shouldTrimVideo &&
                       trimConfig
                         ? (trimConfig.reduce((a, c) => {
@@ -88,6 +88,14 @@ function CompressionProgress() {
                             return a
                           }, 0) ?? targetVideoDuration)
                         : targetVideoDuration) * 1000
+
+                    if (
+                      media[targetMediaIndex]?.config?.convertToExtension ===
+                      'gif'
+                    ) {
+                      // For a gif, we need to double the total video duration as we need to first convert the original video to video settings and then convert that video to gif
+                      videoDurationInMilliseconds *= 2
+                    }
 
                     const currentDurationInMilliseconds =
                       convertDurationToMilliseconds(

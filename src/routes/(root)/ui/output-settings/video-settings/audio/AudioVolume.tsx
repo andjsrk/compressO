@@ -23,7 +23,7 @@ function AudioVolume({ mediaIndex }: AudioVolumeProps) {
       ? media[mediaIndex]
       : null
   const { config, videoInfoRaw } = video ?? {}
-  const { audioConfig } =
+  const { audioConfig, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
   const [volume, setVolume] = React.useState<number>(audioConfig?.volume ?? 100)
@@ -109,7 +109,7 @@ function AudioVolume({ mediaIndex }: AudioVolumeProps) {
     isProcessCompleted ||
     isLoadingMediaFiles ||
     hasNoAudio ||
-    video?.config?.convertToExtension === 'gif'
+    convertToExtension === 'gif'
 
   return (
     <>

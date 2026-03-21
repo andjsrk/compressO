@@ -1,24 +1,26 @@
 use crate::domain::{CancelInProgressCompressionPayload, CustomEvents, TauriEvents};
-use regex::Regex;
 use shared_child::SharedChild;
 use std::{
     io::{BufRead, BufReader},
-    process::{Child, Command},
+    process::Command,
     sync::{Arc, Mutex},
 };
 use strum::EnumProperty;
 use tauri::{AppHandle, Listener, Manager};
 
-pub type FfmpegProgressCallback = Arc<dyn Fn(Option<String>) + Send + Sync>;
-
 pub type CancelCallback = Arc<dyn Fn() + Send + Sync>;
+
+pub type StdoutCallback = Arc<dyn Fn(usize, String) + Send + Sync>;
+
+pub type StderrCallback = Arc<dyn Fn(usize, String) + Send + Sync>;
 
 pub struct MediaProcessExecutorBuilder {
     app: AppHandle,
     commands: Vec<Command>,
     cancel_ids: Vec<String>,
     cancel_callback: Option<CancelCallback>,
-    ffmpeg_progress_callback: Option<FfmpegProgressCallback>,
+    stdout_callback: Option<StdoutCallback>,
+    stderr_callback: Option<StderrCallback>,
     piped: bool,
 }
 
@@ -29,7 +31,8 @@ impl MediaProcessExecutorBuilder {
             commands: Vec::new(),
             cancel_ids: Vec::new(),
             cancel_callback: None,
-            ffmpeg_progress_callback: None,
+            stdout_callback: None,
+            stderr_callback: None,
             piped: false,
         }
     }
@@ -55,8 +58,13 @@ impl MediaProcessExecutorBuilder {
         self
     }
 
-    pub fn with_ffmpeg_progress_callback(mut self, callback: FfmpegProgressCallback) -> Self {
-        self.ffmpeg_progress_callback = Some(callback);
+    pub fn with_stdout_callback(mut self, callback: StdoutCallback) -> Self {
+        self.stdout_callback = Some(callback);
+        self
+    }
+
+    pub fn with_stderr_callback(mut self, callback: StderrCallback) -> Self {
+        self.stderr_callback = Some(callback);
         self
     }
 
@@ -75,12 +83,6 @@ impl MediaProcessExecutorBuilder {
             if self.commands.len() < 2 {
                 return Err("Piped mode requires at least 2 commands".to_string());
             }
-            if self.ffmpeg_progress_callback.is_some() {
-                return Err(
-                    "FFmpeg progress callback is not compatible with piped mode. Piped mode consumes stdout for piping."
-                        .to_string(),
-                );
-            }
         }
 
         Ok(MediaProcessExecutor {
@@ -88,7 +90,8 @@ impl MediaProcessExecutorBuilder {
             commands: self.commands,
             cancel_ids: self.cancel_ids,
             cancel_callback: self.cancel_callback,
-            ffmpeg_progress_callback: self.ffmpeg_progress_callback,
+            stdout_callback: self.stdout_callback,
+            stderr_callback: self.stderr_callback,
             piped: self.piped,
         })
     }
@@ -99,7 +102,8 @@ pub struct MediaProcessExecutor {
     commands: Vec<Command>,
     cancel_ids: Vec<String>,
     cancel_callback: Option<CancelCallback>,
-    ffmpeg_progress_callback: Option<FfmpegProgressCallback>,
+    stdout_callback: Option<StdoutCallback>,
+    stderr_callback: Option<StderrCallback>,
     piped: bool,
 }
 
@@ -194,10 +198,9 @@ impl MediaProcessExecutor {
             event_ids.push(cancel_id);
         }
 
-        // Log stderr from ALL processes
-        #[cfg(debug_assertions)]
         for (idx, proc) in processes.iter().enumerate() {
             let proc_clone = proc.clone();
+            let callback_clone = self.stderr_callback.clone();
             tokio::spawn(async move {
                 if let Some(stderr) = proc_clone.take_stderr() {
                     let mut reader = BufReader::new(stderr);
@@ -209,7 +212,12 @@ impl MediaProcessExecutor {
                                     break;
                                 }
                                 if let Ok(val) = std::str::from_utf8(&buf) {
+                                    #[cfg(debug_assertions)]
                                     log::debug!("[media:process {}] stderr: {:?}", idx, val);
+
+                                    if let Some(ref callback) = callback_clone {
+                                        callback(idx, val.to_string());
+                                    }
                                 }
                             }
                             Err(_) => break,
@@ -220,6 +228,41 @@ impl MediaProcessExecutor {
         }
 
         let mut wait_handles: Vec<tokio::task::JoinHandle<u8>> = Vec::new();
+
+        if self.stdout_callback.is_some() {
+            if let Some(proc) = processes.first() {
+                let proc = proc.clone();
+                let callback = self.stdout_callback.clone().unwrap();
+
+                let handle = tokio::spawn(async move {
+                    if let Some(stdout) = proc.take_stdout() {
+                        let mut reader = BufReader::new(stdout);
+                        loop {
+                            let mut buf: Vec<u8> = Vec::new();
+                            match tauri::utils::io::read_line(&mut reader, &mut buf) {
+                                Ok(n) => {
+                                    if n == 0 {
+                                        break;
+                                    }
+                                    if let Ok(output) = std::str::from_utf8(&buf) {
+                                        #[cfg(debug_assertions)]
+                                        log::debug!("[stdout:process 0] {:?}", output);
+                                        callback(0, output.to_string());
+                                    }
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                    }
+
+                    match proc.wait() {
+                        Ok(status) if status.success() => 0u8,
+                        _ => 1u8,
+                    }
+                });
+                wait_handles.push(handle);
+            }
+        }
 
         if capture_stdout {
             if let Some(proc) = processes.last() {
@@ -247,62 +290,10 @@ impl MediaProcessExecutor {
             }
         }
 
-        // Handle ffmpeg progress (only from FIRST process)
-        if self.ffmpeg_progress_callback.is_some() {
-            if let Some(proc) = processes.first() {
-                let (tx, rx) = crossbeam_channel::unbounded::<Option<String>>();
-                let proc = proc.clone();
-                let callback = self.ffmpeg_progress_callback.clone().unwrap();
-
-                tokio::spawn(async move {
-                    while let Ok(current_duration) = rx.recv() {
-                        callback(current_duration);
-                    }
-                });
-
-                let handle = tokio::spawn(async move {
-                    if let Some(stdout) = proc.take_stdout() {
-                        let mut reader = BufReader::new(stdout);
-                        loop {
-                            let mut buf: Vec<u8> = Vec::new();
-                            match tauri::utils::io::read_line(&mut reader, &mut buf) {
-                                Ok(n) => {
-                                    if n == 0 {
-                                        break;
-                                    }
-                                    if let Ok(output) = std::str::from_utf8(&buf) {
-                                        log::debug!("stdout: {:?}", output);
-                                        let re =
-                                            Regex::new("out_time=(?<out_time>.*?)\\n").unwrap();
-                                        if let Some(cap) = re.captures(output) {
-                                            let out_time = &cap["out_time"];
-                                            if !out_time.is_empty() {
-                                                tx.try_send(Some(String::from(out_time))).ok();
-                                            }
-                                        }
-                                    }
-                                }
-                                Err(_) => break,
-                            }
-                        }
-                    }
-
-                    match proc.wait() {
-                        Ok(status) if status.success() => 0u8,
-                        _ => 1u8,
-                    }
-                });
-                wait_handles.push(handle);
-            }
-        }
-
-        // Spawn wait tasks for ALL processes that don't already have a wait handle
         for (idx, proc) in processes.iter().enumerate() {
-            // Skip first process if it already has a wait handle (progress tracking)
-            // Skip last process if it already has a wait handle (stdout capture)
             let has_handle = if capture_stdout && idx == processes.len() - 1 {
                 true
-            } else if self.ffmpeg_progress_callback.is_some() && idx == 0 {
+            } else if self.stdout_callback.is_some() && idx == 0 {
                 true
             } else {
                 false
@@ -365,10 +356,10 @@ impl MediaProcessExecutor {
         self,
         _capture_stdout: bool,
     ) -> Result<(Option<String>, u8), String> {
-        let mut processes: Vec<Child> = Vec::new();
+        let mut processes: Vec<Arc<SharedChild>> = Vec::new();
         let mut event_ids: Vec<tauri::EventId> = Vec::new();
         let should_cancel = Arc::new(Mutex::new(false));
-        let processes_shared = Arc::new(Mutex::new(Vec::<Child>::new()));
+        let processes_shared = Arc::new(Mutex::new(Vec::<Arc<SharedChild>>::new()));
 
         let mut previous_stdout: Option<std::process::ChildStdout> = None;
         let command_count = self.commands.len();
@@ -394,16 +385,17 @@ impl MediaProcessExecutor {
                 cmd.stdout(std::process::Stdio::piped());
             }
 
-            let mut child = cmd.spawn().map_err(|e| {
+            let child = SharedChild::spawn(&mut cmd).map_err(|e| {
                 let mut processes = processes_shared.lock().unwrap();
                 for process in processes.iter_mut() {
                     process.kill().ok();
                 }
                 format!("Failed to spawn process {}: {}", idx, e)
             })?;
+            let child = Arc::new(child);
 
             if idx < command_count - 1 {
-                previous_stdout = child.stdout.take();
+                previous_stdout = child.take_stdout();
                 if previous_stdout.is_none() {
                     let mut processes = processes_shared.lock().unwrap();
                     for process in processes.iter_mut() {
@@ -418,14 +410,14 @@ impl MediaProcessExecutor {
                 previous_stdout = None;
             }
 
-            processes.push(child);
+            processes.push(child.clone());
             log::debug!(
                 "[media_process] Piped processes spawned process {} successfully",
                 idx
             );
         }
 
-        *processes_shared.lock().unwrap() = processes;
+        *processes_shared.lock().unwrap() = processes.clone();
         let process_count = processes_shared.lock().unwrap().len();
 
         let window = self
@@ -437,8 +429,8 @@ impl MediaProcessExecutor {
             let processes_shared = processes_shared.clone();
             move |_| {
                 log::info!("[media_process] window destroyed, killing piped processes");
-                let mut processes = processes_shared.lock().unwrap();
-                for process in processes.iter_mut() {
+                let processes = processes_shared.lock().unwrap();
+                for process in processes.iter() {
                     process.kill().ok();
                 }
             }
@@ -464,8 +456,8 @@ impl MediaProcessExecutor {
 
                         if matches {
                             log::info!("Piped process execution requested to cancel");
-                            let mut processes = processes_shared_clone.lock().unwrap();
-                            for process in processes.iter_mut() {
+                            let processes = processes_shared_clone.lock().unwrap();
+                            for process in processes.iter() {
                                 process.kill().ok();
                             }
                             let mut flag = should_cancel_clone.lock().unwrap();
@@ -477,25 +469,92 @@ impl MediaProcessExecutor {
             event_ids.push(cancel_id);
         }
 
-        #[cfg(debug_assertions)]
-        {
-            let process = processes_shared.lock().unwrap();
-            for (idx, _process) in process.iter().enumerate() {
-                // Note: Child doesn't have take_stderr(), so we can't log stderr in piped mode
-                // This is a limitation of using Child instead of SharedChild
-                log::debug!(
-                    "[media_process] Process {} stderr logging not available in piped mode",
-                    idx
-                );
-            }
+        for (idx, proc) in processes.iter().enumerate() {
+            let proc_clone = proc.clone();
+            let callback_clone = self.stderr_callback.clone();
+            tokio::spawn(async move {
+                if let Some(stderr) = proc_clone.take_stderr() {
+                    let mut reader = BufReader::new(stderr);
+                    loop {
+                        let mut buf: Vec<u8> = Vec::new();
+                        match tauri::utils::io::read_line(&mut reader, &mut buf) {
+                            Ok(n) => {
+                                if n == 0 {
+                                    break;
+                                }
+                                if let Ok(val) = std::str::from_utf8(&buf) {
+                                    #[cfg(debug_assertions)]
+                                    log::debug!("[media:piped process {}] stderr: {:?}", idx, val);
+                                    if let Some(ref callback) = callback_clone {
+                                        callback(idx, val.to_string());
+                                    }
+                                }
+                            }
+                            Err(_) => break,
+                        }
+                    }
+                }
+            });
         }
 
-        let processes = std::mem::take(&mut *processes_shared.lock().unwrap());
+        // Capture stdout from LAST process in piped mode
+        if self.stdout_callback.is_some() {
+            let last_idx = process_count - 1;
+            let proc_opt = {
+                let processes = processes_shared.lock().unwrap();
+                if last_idx < processes.len() {
+                    Some(processes[last_idx].clone())
+                } else {
+                    log::error!("[media_process] Last process not found for stdout capture");
+                    None
+                }
+            };
+
+            if let Some(proc) = proc_opt {
+                let callback = self.stdout_callback.clone().unwrap();
+                tokio::spawn(async move {
+                    if let Some(stdout) = proc.take_stdout() {
+                        let mut reader = BufReader::new(stdout);
+                        loop {
+                            let mut buf: Vec<u8> = Vec::new();
+                            match tauri::utils::io::read_line(&mut reader, &mut buf) {
+                                Ok(n) => {
+                                    if n == 0 {
+                                        break;
+                                    }
+                                    if let Ok(output) = std::str::from_utf8(&buf) {
+                                        #[cfg(debug_assertions)]
+                                        log::debug!(
+                                            "[piped:stdout:process {}] {:?}",
+                                            last_idx,
+                                            output
+                                        );
+                                        callback(last_idx, output.to_string());
+                                    }
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                    }
+                });
+            }
+        }
 
         let mut final_exit_code = 0u8;
         let mut all_success = true;
 
-        for (idx, mut proc) in processes.into_iter().enumerate() {
+        for idx in 0..process_count {
+            let proc = {
+                let processes = processes_shared.lock().unwrap();
+                if idx < processes.len() {
+                    processes[idx].clone()
+                } else {
+                    log::error!("[media_process] Process {} not found in shared vector", idx);
+                    all_success = false;
+                    break;
+                }
+            };
+
             log::debug!("[media_process] Waiting for process {} to complete", idx);
 
             if *should_cancel.lock().unwrap() {

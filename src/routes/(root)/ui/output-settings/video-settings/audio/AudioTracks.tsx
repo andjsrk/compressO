@@ -46,8 +46,12 @@ function AudioTracks({ mediaIndex }: AudioTracksProps) {
       ? media[mediaIndex]
       : null
   const { config, videoInfoRaw } = video ?? {}
-  const { shouldEnableAudioTrackSelection, selectedAudioTracks, audioConfig } =
-    config ?? commonConfigForBatchCompression.videoConfig ?? {}
+  const {
+    shouldEnableAudioTrackSelection,
+    selectedAudioTracks,
+    audioConfig,
+    convertToExtension,
+  } = config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
   const audioStreams = videoInfoRaw?.audioStreams ?? []
 
@@ -153,7 +157,7 @@ function AudioTracks({ mediaIndex }: AudioTracksProps) {
     isLoadingMediaFiles ||
     hasNoAudio ||
     audioConfig?.volume === 0 ||
-    video?.config?.convertToExtension === 'gif'
+    convertToExtension === 'gif'
 
   return (
     <>

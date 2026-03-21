@@ -14,12 +14,15 @@ type ImageSettingsProps = {
 
 function ImageSettings({ mediaIndex }: ImageSettingsProps) {
   const {
-    state: { media },
+    state: { media, commonConfigForBatchCompression },
   } = useSnapshot(appProxy)
   const image =
     media.length > 0 && mediaIndex >= 0 && media[mediaIndex].type == 'image'
       ? media[mediaIndex]
       : null
+  const { config } = image ?? {}
+  const { convertToExtension } =
+    config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
   return (
     <div className="space-y-3 my-3">
@@ -32,7 +35,7 @@ function ImageSettings({ mediaIndex }: ImageSettingsProps) {
         image?.extension as ImageExtensionType,
       ) &&
       (['png', 'jpg', 'jpeg', 'webp'] as ImageExtensionType[]).includes(
-        image?.config?.convertToExtension as ImageExtensionType,
+        convertToExtension as ImageExtensionType,
       ) ? (
         <div>
           <SvgScaleFactor mediaIndex={mediaIndex} />

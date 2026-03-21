@@ -44,7 +44,7 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
       ? media[mediaIndex]
       : null
   const { config } = video ?? {}
-  const { presetName, shouldDisableCompression } =
+  const { presetName, shouldDisableCompression, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
   const handleSwitchToggle = useCallback(() => {
@@ -92,7 +92,7 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles ||
-    video?.config?.convertToExtension === 'gif'
+    convertToExtension === 'gif'
 
   return (
     <>

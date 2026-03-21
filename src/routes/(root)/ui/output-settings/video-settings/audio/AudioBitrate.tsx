@@ -37,7 +37,7 @@ function AudioBitrate({ mediaIndex }: AudioBitrateProps) {
       ? media[mediaIndex]
       : null
   const { config, videoInfoRaw } = video ?? {}
-  const { audioConfig, shouldEnableCustomBitrate } =
+  const { audioConfig, shouldEnableCustomBitrate, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
   const handleSwitchToggle = useCallback(() => {
@@ -117,7 +117,7 @@ function AudioBitrate({ mediaIndex }: AudioBitrateProps) {
     isProcessCompleted ||
     isLoadingMediaFiles ||
     audioConfig?.volume === 0 ||
-    video?.config?.convertToExtension === 'gif'
+    convertToExtension === 'gif'
 
   const hasNoAudio = videoInfoRaw?.audioStreams?.length === 0
   const currentValue = audioConfig?.bitrate ?? 128

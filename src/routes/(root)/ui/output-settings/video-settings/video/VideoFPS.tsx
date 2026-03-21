@@ -97,7 +97,7 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
           <motion.div {...slideDownTransition}>
             {isGifTarget ? (
               <Slider
-                label="Frames Per Second:"
+                label=" "
                 size="lg"
                 step={1}
                 minValue={1}
