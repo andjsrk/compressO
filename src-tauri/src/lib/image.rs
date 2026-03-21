@@ -1,10 +1,11 @@
 use crate::domain::{
-    BatchImageCompressionProgress, CancelInProgressCompressionPayload, CustomEvents,
-    ImageBatchCompressionResult, ImageBatchIndividualCompressionResult, ImageCompressionConfig,
-    ImageCompressionProgress, ImageCompressionResult, TauriEvents,
+    BatchImageCompressionProgress, CustomEvents, ImageBatchCompressionResult,
+    ImageBatchIndividualCompressionResult, ImageCompressionConfig, ImageCompressionProgress,
+    ImageCompressionResult,
 };
 use crate::ffmpeg::FFMPEG;
 use crate::fs::get_file_metadata;
+use crate::media_process::MediaProcessExecutorBuilder;
 use image::{ImageEncoder, ImageReader};
 use img_parts::{
     jpeg::Jpeg,
@@ -12,17 +13,14 @@ use img_parts::{
     Bytes,
 };
 use log::error;
+use nanoid::nanoid;
 use oxipng::{optimize, Deflaters, InFile, Options, OutFile, StripChunks};
 use resvg::{self, tiny_skia, usvg};
-use shared_child::SharedChild;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::{
-    process::{Command, Stdio},
-    sync::Arc,
-};
-use strum::EnumProperty;
+use std::process::Command;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_shell::ShellExt;
 
@@ -95,7 +93,7 @@ impl ImageCompressor {
         is_lossless: Option<bool>,
         quality: u8,
         image_id: &str,
-        _batch_id: Option<&str>,
+        batch_id: Option<&str>,
         strip_metadata: Option<bool>,
     ) -> Result<ImageCompressionResult, String> {
         let original_path = Path::new(input_path);
@@ -134,6 +132,11 @@ impl ImageCompressor {
             None
         };
 
+        let batch_id = match batch_id {
+            Some(id) => String::from(id),
+            None => nanoid!(),
+        };
+
         let compression_output_path = intermediate_path.as_ref().unwrap_or(&output_path);
 
         match original_extension.as_str() {
@@ -141,6 +144,8 @@ impl ImageCompressor {
                 self.compress_png(
                     input_path,
                     compression_output_path.to_str().unwrap(),
+                    image_id,
+                    batch_id.as_str(),
                     is_lossless.unwrap_or(true),
                     quality,
                     strip_metadata.unwrap_or(true),
@@ -151,6 +156,8 @@ impl ImageCompressor {
                 self.compress_jpeg(
                     input_path,
                     compression_output_path.to_str().unwrap(),
+                    image_id,
+                    batch_id.as_str(),
                     is_lossless.unwrap_or(true),
                     quality,
                     strip_metadata.unwrap_or(true),
@@ -171,6 +178,8 @@ impl ImageCompressor {
                 self.compress_gif(
                     input_path,
                     compression_output_path.to_str().unwrap(),
+                    image_id,
+                    batch_id.as_str(),
                     is_lossless.unwrap_or(true),
                     quality,
                     strip_metadata.unwrap_or(true),
@@ -378,6 +387,8 @@ impl ImageCompressor {
         &mut self,
         input_path: &str,
         output_path: &str,
+        image_id: &str,
+        batch_id: &str,
         is_lossless: bool,
         quality: u8,
         strip_metadata: bool,
@@ -415,11 +426,22 @@ impl ImageCompressor {
             let quality_str = quality.clamp(1, 100).to_string();
 
             let result = self
-                .run_pngquant(&quality_str, output_path, input_path, strip_metadata)
+                .run_pngquant(
+                    input_path,
+                    output_path,
+                    image_id,
+                    batch_id,
+                    &quality_str,
+                    strip_metadata,
+                )
                 .await;
 
             match result {
                 Err(e) => {
+                    if e.eq("CANCELLED") {
+                        return Err(e);
+                    }
+
                     log::warn!(
                         "[image] pngquant attempt 1 failed: {}. Retrying with quality 0-{}...",
                         e,
@@ -427,9 +449,11 @@ impl ImageCompressor {
                     );
 
                     self.run_pngquant(
-                        &format!("0-{}", quality),
-                        output_path,
                         input_path,
+                        output_path,
+                        image_id,
+                        batch_id,
+                        &format!("0-{}", quality),
                         strip_metadata,
                     )
                     .await?;
@@ -444,9 +468,11 @@ impl ImageCompressor {
 
     async fn run_pngquant(
         &mut self,
-        quality_str: &str,
-        output_path: &str,
         input_path: &str,
+        output_path: &str,
+        image_id: &str,
+        batch_id: &str,
+        quality_str: &str,
         strip_metadata: bool,
     ) -> Result<PathBuf, String> {
         let mut args: Vec<&str> = vec!["--quality", quality_str, "--force", "--strip"];
@@ -459,70 +485,43 @@ impl ImageCompressor {
 
         let mut pngquant_cmd = self.get_pngquant_command()?;
 
-        let command = pngquant_cmd
-            .args(&args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        pngquant_cmd.args(&args);
 
-        match SharedChild::spawn(command) {
-            Ok(child) => {
-                #[cfg(debug_assertions)]
-                let stderr_output = child.take_stderr().and_then(|mut stderr| {
-                    use std::io::Read;
-                    let mut buffer = String::new();
-                    let _ = stderr.read_to_string(&mut buffer);
-                    Some(buffer)
-                });
-                #[cfg(not(debug_assertions))]
-                let stderr_output = None;
+        let cancel_callback = Arc::new(|| {
+            log::info!("CANCELLED PNG");
+        });
 
-                let cp = Arc::new(child);
-                let cp_clone = cp.clone();
+        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+            .command(pngquant_cmd)
+            .with_cancel_support(
+                vec![image_id.to_string(), batch_id.to_string()],
+                Some(cancel_callback),
+            )
+            .build()?;
 
-                tokio::spawn(async move {
-                    let _ = cp_clone.wait();
-                });
+        let result = executor.spawn_and_wait().await?;
 
-                match cp.wait() {
-                    Ok(status) if status.success() => {
-                        if !strip_metadata {
-                            let _ = self.copy_image_metadata(
-                                ImageContainer::Png,
-                                input_path,
-                                output_path,
-                            );
-                        }
-                        Ok(PathBuf::from(output_path))
-                    }
-                    Ok(_) => {
-                        let error_msg = stderr_output
-                            .as_ref()
-                            .map(|s: &String| s.trim())
-                            .unwrap_or("");
-                        if !error_msg.is_empty() {
-                            Err(format!("pngquant failed: {}", error_msg))
-                        } else {
-                            Err(String::from("pngquant failed"))
-                        }
-                    }
-                    Err(e) => Err(format!("pngquant error: {}", e)),
-                }
-            }
-            Err(e) => Err(format!("Failed to run pngquant: {}", e)),
+        if !result.success() {
+            return Err(String::from("Failed to run pngquant"));
         }
+
+        if !strip_metadata {
+            let _ = self.copy_image_metadata(ImageContainer::Png, input_path, output_path);
+        }
+
+        Ok(PathBuf::from(output_path))
     }
 
     async fn compress_jpeg(
         &mut self,
         input_path: &str,
         output_path: &str,
+        image_id: &str,
+        batch_id: &str,
         is_lossless: bool,
         quality: u8,
         strip_metadata: bool,
     ) -> Result<(), String> {
-        use std::process::Stdio;
-        use std::sync::Arc;
-
         std::fs::copy(input_path, &output_path).map_err(|e| e.to_string())?;
 
         let jpeg_quality = quality.max(1).min(100).to_string();
@@ -542,37 +541,31 @@ impl ImageCompressor {
 
         let mut jpegoptim_cmd = self.get_jpegoptim_command()?;
 
-        let command = jpegoptim_cmd
-            .args(&args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        jpegoptim_cmd.args(&args);
 
-        match SharedChild::spawn(command) {
-            Ok(child) => {
-                let cp = Arc::new(child);
-                let cp_clone = cp.clone();
+        let cancel_callback = Arc::new(|| {
+            log::info!("CANCELLED JPEG");
+        });
 
-                tokio::spawn(async move {
-                    let _ = cp_clone.wait();
-                });
+        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+            .command(jpegoptim_cmd)
+            .with_cancel_support(
+                vec![image_id.to_string(), batch_id.to_string()],
+                Some(cancel_callback),
+            )
+            .build()?;
 
-                match cp.wait() {
-                    Ok(status) if status.success() => {
-                        if !strip_metadata {
-                            let _ = self.copy_image_metadata(
-                                ImageContainer::Jpeg,
-                                input_path,
-                                output_path,
-                            );
-                        }
-                        Ok(())
-                    }
-                    Ok(_) => Err(String::from("jpegoptim failed")),
-                    Err(e) => Err(format!("jpegoptim error: {}", e)),
-                }
-            }
-            Err(e) => Err(format!("Failed to run jpegoptim: {}", e)),
+        let result = executor.spawn_and_wait().await?;
+
+        if !result.success() {
+            return Err(String::from("Failed to convert to jpeg."));
         }
+
+        if !strip_metadata {
+            let _ = self.copy_image_metadata(ImageContainer::Jpeg, input_path, output_path);
+        }
+
+        Ok(())
     }
 
     async fn compress_webp(
@@ -613,6 +606,8 @@ impl ImageCompressor {
         &mut self,
         input_path: &str,
         output_path: &str,
+        image_id: &str,
+        batch_id: &str,
         is_lossless: bool,
         quality: u8,
         strip_metadata: bool,
@@ -637,21 +632,25 @@ impl ImageCompressor {
 
         let mut gifski_cmd = self.get_gifski_command()?;
 
-        let command = gifski_cmd
-            .args(&args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        gifski_cmd.args(&args);
 
-        let child =
-            SharedChild::spawn(command).map_err(|e| format!("Failed to run gifski: {}", e))?;
+        let cancel_callback = Arc::new(|| {
+            log::info!("CANCELLED GIF");
+        });
 
-        let cp = Arc::new(child);
+        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+            .command(gifski_cmd)
+            .with_cancel_support(
+                vec![image_id.to_string(), batch_id.to_string()],
+                Some(cancel_callback),
+            )
+            .build()?;
 
-        match cp.wait() {
-            Ok(status) if status.success() => {}
-            Ok(_) => return Err("gifski failed".into()),
-            Err(e) => return Err(format!("gifski error: {}", e)),
-        };
+        let result = executor.spawn_and_wait().await?;
+
+        if !result.success() {
+            return Err(String::from("gifski failed"));
+        }
 
         Ok(())
     }
@@ -895,71 +894,31 @@ impl ImageCompressor {
         let ffmpeg = FFMPEG::new(&self.app)?;
         let mut ffmpeg_cmd = ffmpeg.get_ffmpeg_command()?;
 
-        let command = ffmpeg_cmd
-            .args(&cmd_args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        ffmpeg_cmd.args(&cmd_args);
 
-        match SharedChild::spawn(command) {
-            Ok(child) => {
-                let cp = Arc::new(child);
-                let cp_clone1 = cp.clone();
-                let cp_clone2 = cp.clone();
+        let conversion_id = format!("img_convert_{}", nanoid!());
 
-                let window = match self.app.get_webview_window("main") {
-                    Some(window) => window,
-                    None => return Err(String::from("Could not attach to main window")),
-                };
+        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+            .command(ffmpeg_cmd)
+            .with_cancel_support(vec![conversion_id], None)
+            .build()?;
 
-                let destroy_event_id =
-                    window.listen(TauriEvents::Destroyed.get_str("key").unwrap(), move |_| {
-                        log::info!("[tauri] window destroyed");
-                        let _ = cp.kill();
-                    });
+        let result = executor.spawn_and_wait().await?;
 
-                let cancel_event_id = window.listen(
-                    CustomEvents::CancelInProgressCompression.as_ref(),
-                    move |evt| {
-                        let payload_str = evt.payload();
-                        if let Ok(_payload) =
-                            serde_json::from_str::<CancelInProgressCompressionPayload>(payload_str)
-                        {
-                            let _ = cp_clone2.kill();
-                        }
-                    },
-                );
-
-                let handle = tokio::spawn(async move {
-                    match cp_clone1.wait() {
-                        Ok(status) if status.success() => Ok(()),
-                        Ok(_) => Err(String::from("FFmpeg conversion failed")),
-                        Err(e) => Err(format!("FFmpeg error: {}", e)),
-                    }
-                });
-
-                match handle.await {
-                    Ok(result) => {
-                        window.unlisten(destroy_event_id);
-                        window.unlisten(cancel_event_id);
-
-                        result?;
-
-                        if !PathBuf::from(output_path).exists() {
-                            return Err(String::from("Output file was not created"));
-                        }
-
-                        let output_metadata = get_file_metadata(&output_path)?;
-                        if output_metadata.size == 0 {
-                            return Err(String::from("Output file is empty"));
-                        }
-
-                        Ok(())
-                    }
-                    Err(e) => Err(format!("Conversion task failed: {}", e)),
-                }
-            }
-            Err(e) => Err(format!("Failed to spawn FFmpeg: {}", e)),
+        if !result.success() {
+            return Err(String::from("FFmpeg conversion failed"));
         }
+
+        if !PathBuf::from(output_path).exists() {
+            return Err(String::from("Output file was not created"));
+        }
+
+        let output_metadata = get_file_metadata(&output_path)?;
+        if output_metadata.size == 0 {
+            return Err(String::from("Output file is empty"));
+        }
+
+        Ok(())
     }
 
     pub fn copy_image_metadata(

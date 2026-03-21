@@ -40,7 +40,6 @@ export enum CustomEvents {
 export type VideoCompressionProgress = {
   videoId: string
   batchId: string
-  fileName: string
   currentDuration: string
 }
 export type BatchVideoIndividualCompressionResult = {
@@ -218,7 +217,6 @@ export type VideoCompressionConfig = {
 export type ImageCompressionProgress = {
   imageId: string
   batchId: string
-  fileName: string
   progress: number
 }
 

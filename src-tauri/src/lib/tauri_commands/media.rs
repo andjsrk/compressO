@@ -124,7 +124,6 @@ pub async fn compress_media_batch(
         } else if let Some(image_config) = &media_item.image_config {
             let image_id = image_config.image_id.clone();
             let image_id_clone = image_id.clone();
-            let image_output_extension_clone = image_config.convert_to_extension.clone();
 
             // Image compression doesn't have any progress % tracking, so we immediately send the current index of the image to let the front-end know where the index cursor is.
             // NOTE: this event must be sync and not be within tokio::spawn(...) due to the fact that image compression can be so fast, this event might deliver later and mess up the batch compression index cursor.
@@ -132,7 +131,6 @@ pub async fn compress_media_batch(
                 let image_compression_progress =
                     MediaCompressionProgress::Image(ImageCompressionProgress {
                         batch_id: batch_id_clone.to_owned(),
-                        file_name: format!("{}.{}", image_id_clone, image_output_extension_clone),
                         image_id: image_id_clone,
                         progress: 0.0,
                     });
@@ -193,7 +191,9 @@ pub async fn compress_media_batch(
                     }
                 }
                 Err(e) => {
-                    // TODO: Handle image compression CANCELLED event
+                    if e == "CANCELLED" {
+                        return Err(String::from("CANCELLED"));
+                    }
                     log::error!("Failed to compress image '{}': {}", image_id, e);
                 }
             }

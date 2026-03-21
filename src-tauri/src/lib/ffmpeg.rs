@@ -7,13 +7,10 @@ use crate::domain::{
 use crate::ffprobe::FFPROBE;
 use crate::fs::get_file_metadata;
 use crate::image::ImageCompressor;
-use crossbeam_channel::{Receiver, Sender};
+use crate::media_process::{CancelCallback, FfmpegProgressCallback, MediaProcessExecutorBuilder};
 use nanoid::nanoid;
-use regex::Regex;
 use serde_json::Value;
-use shared_child::SharedChild;
 use std::{
-    io::BufReader,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{Arc, Mutex},
@@ -107,18 +104,12 @@ impl FFMPEG {
         };
         let has_existing_subtitles = existing_subtitle_count > 0;
 
-        let video_id_clone1 = video_id.to_owned();
-        let video_id_clone2 = video_id.to_owned();
-
         let batch_id = match batch_id {
             Some(id) => String::from(id),
             None => nanoid!(),
         };
-        let batch_id_clone1 = batch_id.clone();
-        let batch_id_clone2 = batch_id.clone();
 
         let file_name = format!("{}.{}", video_id, convert_to_extension);
-        let file_name_clone = file_name.clone();
 
         let output_file: PathBuf = [self.assets_dir.clone(), PathBuf::from(&file_name)]
             .iter()
@@ -627,205 +618,55 @@ impl FFMPEG {
             }
         }
 
-        // Output path
         let output_path = output_file.display().to_string();
         cmd_args.extend_from_slice(&["-y", &output_path]);
 
         log::info!("[ffmpeg] final command{:?}", cmd_args);
 
-        let mut ffmpeg_cmd: Command = self.get_ffmpeg_command()?;
+        let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
+        ffmpeg_cmd.args(cmd_args);
 
-        let command = ffmpeg_cmd
-            .args(cmd_args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        let output_file_clone = output_file.clone();
+        let cancel_callback: CancelCallback = Arc::new(move || {
+            std::fs::remove_file(&output_file_clone).ok();
+            log::info!("Cleaned up partial output file: {:?}", output_file_clone);
+        });
 
-        match SharedChild::spawn(command) {
-            Ok(child) => {
-                let cp = Arc::new(child);
-                let cp_clone1 = cp.clone();
-                let cp_clone2 = cp.clone();
-                let cp_clone3 = cp.clone();
-                let cp_clone4 = cp.clone();
-
-                let window = match self.app.get_webview_window("main") {
-                    Some(window) => window,
-                    None => return Err(String::from("Could not attach to main window")),
+        let app_clone = self.app.clone();
+        let video_id_for_progress = video_id.to_string();
+        let batch_id_for_progress = batch_id.clone();
+        let progress_callback: FfmpegProgressCallback = Arc::new(move |current_duration| {
+            if let Some(duration) = current_duration {
+                let video_progress = VideoCompressionProgress {
+                    video_id: video_id_for_progress.clone(),
+                    batch_id: batch_id_for_progress.clone(),
+                    current_duration: duration,
                 };
-                let destroy_event_id =
-                    window.listen(TauriEvents::Destroyed.get_str("key").unwrap(), move |_| {
-                        log::info!("[tauri] window destroyed");
-                        match cp.kill() {
-                            Ok(_) => {
-                                log::info!("[ffmpeg-sidecar] child process killed.");
-                            }
-                            Err(err) => {
-                                log::error!(
-                                    "[ffmpeg-sidecar] child process could not be killed {}",
-                                    err.to_string()
-                                );
-                            }
-                        }
-                    });
-
-                let should_cancel = Arc::new(Mutex::new(false));
-                let should_cancel_clone = Arc::clone(&should_cancel);
-
-                let cancel_event_id = window.listen(
-                    CustomEvents::CancelInProgressCompression.as_ref(),
-                    move |evt| {
-                        let payload_str = evt.payload();
-                        let payload_opt: Option<CancelInProgressCompressionPayload> =
-                            serde_json::from_str(payload_str).ok();
-                        if let Some(payload) = payload_opt {
-                            let batch_id = batch_id_clone1.as_str();
-                            if payload.media_id == video_id_clone1
-                                || (payload.batch_id.is_some()
-                                    && payload.batch_id.unwrap() == batch_id)
-                            {
-                                log::info!("compression requested to cancel.");
-                                match cp_clone4.kill() {
-                                    Ok(_) => {
-                                        log::info!("[ffmpeg-sidecar] child process killed.");
-                                    }
-                                    Err(err) => {
-                                        log::error!(
-                                            "[ffmpeg-sidecar] child process could not be killed {}",
-                                            err.to_string()
-                                        );
-                                    }
-                                };
-                                let mut _should_cancel = should_cancel_clone.lock().unwrap();
-                                *_should_cancel = true;
-                            }
-                        }
-                    },
-                );
-
-                #[cfg(debug_assertions)]
-                tokio::spawn(async move {
-                    if let Some(stderr) = cp_clone1.take_stderr() {
-                        let mut reader = BufReader::new(stderr);
-
-                        loop {
-                            let mut buf: Vec<u8> = Vec::new();
-                            match tauri::utils::io::read_line(&mut reader, &mut buf) {
-                                Ok(n) => {
-                                    if n == 0 {
-                                        break;
-                                    }
-                                    if let Ok(val) = std::str::from_utf8(&buf) {
-                                        log::debug!("[ffmpeg-sidecar] stderr: {:?}", val);
-                                    }
-                                }
-                                Err(_) => {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                });
-
-                let (tx, rx): (Sender<String>, Receiver<String>) = crossbeam_channel::unbounded();
-
-                let thread: tokio::task::JoinHandle<u8> = tokio::spawn(async move {
-                    if let Some(stdout) = cp_clone2.take_stdout() {
-                        let mut reader = BufReader::new(stdout);
-                        loop {
-                            let mut buf: Vec<u8> = Vec::new();
-                            match tauri::utils::io::read_line(&mut reader, &mut buf) {
-                                Ok(n) => {
-                                    if n == 0 {
-                                        break;
-                                    }
-                                    if let Ok(output) = std::str::from_utf8(&buf) {
-                                        log::debug!("stdout: {:?}", output);
-                                        let re =
-                                            Regex::new("out_time=(?<out_time>.*?)\\n").unwrap();
-                                        if let Some(cap) = re.captures(output) {
-                                            let out_time = &cap["out_time"];
-                                            if !out_time.is_empty() {
-                                                tx.try_send(String::from(out_time)).ok();
-                                            }
-                                        }
-                                    }
-                                }
-                                Err(_) => {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    match cp_clone2.wait() {
-                        Ok(status) if status.success() => 0,
-                        _ => 1,
-                    }
-                });
-
-                let app_clone = self.app.clone();
-                tokio::spawn(async move {
-                    let file_name_clone_str = file_name_clone.as_str();
-
-                    while let Ok(current_duration) = rx.recv() {
-                        let video_progress = VideoCompressionProgress {
-                            video_id: String::from(video_id_clone2.clone()),
-                            batch_id: batch_id_clone2.clone(),
-                            file_name: String::from(file_name_clone_str),
-                            current_duration,
-                        };
-                        if let Some(window) = app_clone.get_webview_window("main") {
-                            window
-                                .emit(
-                                    CustomEvents::VideoCompressionProgress.as_ref(),
-                                    video_progress,
-                                )
-                                .ok();
-                        }
-                    }
-                });
-
-                let message: String = match thread.await {
-                    Ok(exit_status) => {
-                        if exit_status == 1 {
-                            String::from("Video is corrupted.")
-                        } else {
-                            String::from("")
-                        }
-                    }
-                    Err(err) => err.to_string(),
-                };
-
-                // Cleanup
-                window.unlisten(destroy_event_id);
-                window.unlisten(cancel_event_id);
-                match cp_clone3.kill() {
-                    Ok(_) => {
-                        log::info!("[ffmpeg-sidecar] child process killed.");
-                    }
-                    Err(err) => {
-                        log::error!(
-                            "[ffmpeg-sidecar] child process could not be killed {}",
-                            err.to_string()
-                        );
-                    }
-                }
-
-                let is_cancelled = should_cancel.lock().unwrap();
-                if *is_cancelled {
-                    // Delete the partial output file
-                    std::fs::remove_file(&output_file).ok();
-                    return Err(String::from("CANCELLED"));
-                }
-
-                if !message.is_empty() {
-                    return Err(message);
+                if let Some(window) = app_clone.get_webview_window("main") {
+                    window
+                        .emit(
+                            CustomEvents::VideoCompressionProgress.as_ref(),
+                            video_progress,
+                        )
+                        .ok();
                 }
             }
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        };
+        });
+
+        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+            .command(ffmpeg_cmd)
+            .with_cancel_support(
+                vec![video_id.to_string(), batch_id.clone()],
+                Some(cancel_callback),
+            )
+            .with_ffmpeg_progress_callback(progress_callback)
+            .build()?;
+
+        let result = executor.spawn_and_wait().await?;
+
+        if !result.success() {
+            return Err("Video compression failed".to_string());
+        }
 
         let file_metadata = get_file_metadata(&output_file.to_string_lossy().to_string());
         Ok(VideoCompressionResult {
@@ -972,9 +813,8 @@ impl FFMPEG {
 
         let timestamp_value = timestamp.unwrap_or("00:00:01.00");
 
-        let mut ffmpeg_cmd: Command = self.get_ffmpeg_command()?;
-
-        let command = ffmpeg_cmd.args([
+        let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
+        ffmpeg_cmd.args([
             "-ss",
             timestamp_value,
             "-i",
@@ -989,68 +829,16 @@ impl FFMPEG {
             "-y",
         ]);
 
-        match SharedChild::spawn(command) {
-            Ok(child) => {
-                let cp = Arc::new(child);
-                let cp_clone1 = cp.clone();
-                let cp_clone2 = cp.clone();
+        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+            .command(ffmpeg_cmd)
+            .build()?;
 
-                let window = match self.app.get_webview_window("main") {
-                    Some(window) => window,
-                    None => return Err(String::from("Could not attach to main window")),
-                };
-                let destroy_event_id = window.listen(
-                    TauriEvents::Destroyed.get_str("key").unwrap(),
-                    move |_| match cp.kill() {
-                        Ok(_) => {
-                            log::info!("[ffmpeg-sidecar] child process killed.");
-                        }
-                        Err(err) => {
-                            log::error!(
-                                "[ffmpeg-sidecar] child process could not be killed {}",
-                                err.to_string()
-                            );
-                        }
-                    },
-                );
+        let result = executor.spawn_and_wait().await?;
 
-                let thread: tokio::task::JoinHandle<u8> = tokio::spawn(async move {
-                    if cp_clone1.wait().is_ok() {
-                        return 0;
-                    }
-                    1
-                });
+        if !result.success() {
+            return Err("Video is corrupted or thumbnail generation failed".to_string());
+        }
 
-                let message: String = match thread.await {
-                    Ok(exit_status) => {
-                        if exit_status == 1 {
-                            String::from("Video is corrupted.")
-                        } else {
-                            String::from("")
-                        }
-                    }
-                    Err(err) => err.to_string(),
-                };
-
-                // Cleanup
-                window.unlisten(destroy_event_id);
-                match cp_clone2.kill() {
-                    Ok(_) => {
-                        log::info!("[ffmpeg-sidecar] child process killed.");
-                    }
-                    Err(err) => {
-                        log::error!(
-                            "[ffmpeg-sidecar] child process could not be killed {}",
-                            err.to_string()
-                        );
-                    }
-                }
-                if !message.is_empty() {
-                    return Err(message);
-                }
-            }
-            Err(err) => return Err(err.to_string()),
-        };
         Ok(VideoThumbnail {
             id,
             file_name,
@@ -1115,40 +903,34 @@ impl FFMPEG {
             ));
         }
 
-        let mut ffmpeg_cmd: Command = self.get_ffmpeg_command()?;
-
-        let command = ffmpeg_cmd
+        let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
+        ffmpeg_cmd
             .args(["-i", video_path])
             .args(["-map", &format!("0:s:{}", subtitle_specific_index)])
             .args(["-c:s", ffmpeg_codec])
             .arg(&output_path_buf)
-            .arg("-y")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .arg("-y");
 
-        match SharedChild::spawn(command) {
-            Ok(child) => {
-                let cp = Arc::new(child);
+        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+            .command(ffmpeg_cmd)
+            .build()?;
 
-                match cp.wait() {
-                    Ok(exit_status) => {
-                        if exit_status.success() {
-                            if Path::exists(&output_path_buf) {
-                                Ok(output_path.to_string())
-                            } else {
-                                Err(String::from(
-                                    "Failed to extract subtitle: Output file was not created.",
-                                ))
-                            }
-                        } else {
-                            Err(format!("Failed to extract subtitle (exit code {}). The subtitle may be in an unsupported format.", exit_status))
-                        }
-                    }
-                    Err(err) => Err(format!("Failed to extract subtitle: {}", err)),
-                }
+        let result = executor.spawn_and_wait().await?;
+
+        if !result.success() {
+            if Path::exists(&output_path_buf) {
+                return Err(format!(
+                    "Failed to extract subtitle (exit code {}). The subtitle may be in an unsupported format.",
+                    result.code()
+                ));
+            } else {
+                return Err(String::from(
+                    "Failed to extract subtitle: Output file was not created.",
+                ));
             }
-            Err(err) => Err(format!("Failed to extract subtitle: {}", err)),
         }
+
+        Ok(output_path.to_string())
     }
 
     pub fn convert_video_to_gif(
@@ -1159,7 +941,6 @@ impl FFMPEG {
         dimensions: Option<(u32, u32)>,
         fps: Option<&str>,
     ) -> Result<PathBuf, String> {
-        // TODO: Implement CANCEL event and progress support.
         let output_filename = format!("{}.gif", video_id);
         let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
             .iter()
@@ -1170,12 +951,51 @@ impl FFMPEG {
             .ok_or("Invalid output path")?
             .to_string();
 
+        // Setup cancellation support (ID for cancelling the conversion)
+        let gifski_id = format!("{}", video_id);
+
+        // Get window for event listeners
+        let window = self
+            .app
+            .get_webview_window("main")
+            .ok_or("Could not attach to main window")?;
+
+        // Use Arc for shared cancellation state
+        let should_cancel = Arc::new(Mutex::new(false));
+        let should_cancel_clone = should_cancel.clone();
+
+        // Setup cancellation listener
+        let cancel_event_id = window.listen(CustomEvents::CancelInProgressCompression.as_ref(), {
+            let gifski_id = gifski_id.clone();
+            let should_cancel = should_cancel_clone.clone();
+            move |evt| {
+                let payload_str = evt.payload();
+                if let Ok(payload) =
+                    serde_json::from_str::<CancelInProgressCompressionPayload>(payload_str)
+                {
+                    if payload.ids.iter().any(|id| id == &gifski_id) {
+                        log::info!("GIF conversion requested to cancel");
+                        let mut flag = should_cancel.lock().unwrap();
+                        *flag = true;
+                    }
+                }
+            }
+        });
+
+        // Setup window cleanup listener
+        let destroy_event_id = window.listen(TauriEvents::Destroyed.get_str("key").unwrap(), {
+            move |_| {
+                log::info!("[tauri] window destroyed, GIF conversion will terminate");
+            }
+        });
+
+        // Build ffmpeg command
         let ffmpeg_args = vec!["-i", video_path, "-f", "yuv4mpegpipe", "-"];
+        let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
+        ffmpeg_cmd.args(&ffmpeg_args);
 
-        let mut ffmpeg_cmd: Command = self.get_ffmpeg_command()?;
-
+        // Spawn ffmpeg with piped stdout
         let mut ffmpeg_child = ffmpeg_cmd
-            .args(&ffmpeg_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -1186,9 +1006,10 @@ impl FFMPEG {
             .take()
             .ok_or("Failed to get ffmpeg stdout")?;
 
+        // Build gifski command
         let gifski_quality = quality.clamp(1, 100);
         let gifski_quality_str = gifski_quality.to_string();
-        let mut gifski_args: Vec<String> = vec!["-Q".to_string(), gifski_quality_str.clone()];
+        let mut gifski_args: Vec<String> = vec!["-Q".to_string(), gifski_quality_str];
 
         if let Some(fps_val) = fps {
             gifski_args.push("-r".to_string());
@@ -1216,11 +1037,11 @@ impl FFMPEG {
 
         let image_compressor = ImageCompressor::new(&self.app)?;
 
-        let mut gifski_cmd = match image_compressor.get_gifski_command() {
-            Ok(command) => Command::from(command),
-            Err(err) => return Err(format!("Gifski command error {:?}", err.to_string())),
-        };
+        let mut gifski_cmd = image_compressor
+            .get_gifski_command()
+            .map_err(|e| format!("Gifski command error: {}", e))?;
 
+        // Spawn gifski with ffmpeg stdout as stdin
         let mut gifski_child = gifski_cmd
             .args(&gifski_args_refs)
             .stdin(ffmpeg_stdout)
@@ -1229,8 +1050,27 @@ impl FFMPEG {
             .spawn()
             .map_err(|e| format!("Failed to run gifski: {}", e))?;
 
+        // Check if cancelled before waiting
+        if *should_cancel.lock().unwrap() {
+            ffmpeg_child.kill().ok();
+            gifski_child.kill().ok();
+            window.unlisten(destroy_event_id);
+            window.unlisten(cancel_event_id);
+            return Err("CANCELLED".to_string());
+        }
+
+        // Wait for both processes
         let ffmpeg_result = ffmpeg_child.wait();
         let gifski_result = gifski_child.wait();
+
+        // Cleanup event listeners
+        window.unlisten(destroy_event_id);
+        window.unlisten(cancel_event_id);
+
+        // Check for cancellation
+        if *should_cancel.lock().unwrap() {
+            return Err("CANCELLED".to_string());
+        }
 
         match (ffmpeg_result, gifski_result) {
             (Ok(ffmpeg_status), Ok(gifski_status)) => {

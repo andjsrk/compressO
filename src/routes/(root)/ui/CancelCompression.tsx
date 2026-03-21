@@ -37,8 +37,10 @@ function CancelCompression() {
       const appSnapShot = snapshot(appProxy)
       setIsCancelling(true)
       await emitTo('main', CustomEvents.CancelInProgressCompression, {
-        mediaId: appSnapShot.state.media[0]?.id, // for single-media mode
-        batchId: appSnapShot.state.batchId,
+        ids: [
+          appSnapShot.state.media[0]?.id, // for single-media mode
+          appSnapShot.state.batchId,
+        ],
       })
       if (
         appProxy.state.media.length > 1 &&

@@ -33,7 +33,6 @@ pub struct FileMetadata {
 pub struct VideoCompressionProgress {
     pub video_id: String,
     pub batch_id: String,
-    pub file_name: String,
     pub current_duration: String,
 }
 
@@ -67,8 +66,7 @@ pub enum TauriEvents {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelInProgressCompressionPayload {
-    pub media_id: String,
-    pub batch_id: Option<String>,
+    pub ids: Vec<String>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -349,7 +347,6 @@ pub struct UpdateInfo {
 pub struct ImageCompressionProgress {
     pub image_id: String,
     pub batch_id: String,
-    pub file_name: String,
     pub progress: f32,
 }
 
