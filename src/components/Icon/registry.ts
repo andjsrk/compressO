@@ -1,8 +1,8 @@
 import React from 'react'
 
 import AddMedia from '@/assets/icons/add-media.svg?react'
-import AudioMuted from '@/assets/icons/audio-muted.svg?react'
 import Audio from '@/assets/icons/audio.svg?react'
+import AudioMuted from '@/assets/icons/audio-muted.svg?react'
 import Back from '@/assets/icons/back.svg?react'
 import Caret from '@/assets/icons/caret.svg?react'
 import Chevron from '@/assets/icons/chevron.svg?react'
@@ -20,7 +20,6 @@ import FlipVertical from '@/assets/icons/flip-vertical.svg?react'
 import Github from '@/assets/icons/github.svg?react'
 import Image from '@/assets/icons/image.svg?react'
 import Info from '@/assets/icons/info.svg?react'
-import Logo from '@/assets/icons/logo.svg?react'
 import LowResHeart from '@/assets/icons/low-res-heart.svg?react'
 import Moon from '@/assets/icons/moon.svg?react'
 import Pause from '@/assets/icons/pause.svg?react'
@@ -48,7 +47,6 @@ function asRegistry<T extends string>(
 }
 
 const registry = asRegistry({
-  logo: Logo,
   moon: Moon,
   sun: Sun,
   video: Video,

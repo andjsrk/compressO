@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { snapshot, useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
-import Icon from '@/components/Icon'
 import { compressMediaBatch } from '@/tauri/commands/media'
 import { VideoMetadataConfig } from '@/types/app'
 import {
@@ -290,7 +289,7 @@ function StartCompression() {
           className="w-full text-primary bg-primary/20"
           isDisabled={isLoadingMediaFiles}
         >
-          Process <Icon name="logo" size={25} />
+          Process
         </Button>
       )}
     </div>
