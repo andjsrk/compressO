@@ -281,6 +281,12 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
   const thumbnailPath =
     mediaFile?.type === 'video' ? videoThumbnailPath : mediaPath
 
+  const imageToRenderSrc = isProcessCompleted
+    ? mediaFile?.type === 'video' && mediaFile?.previewMode === 'image'
+      ? mediaFile?.thumbnailPath!
+      : mediaFile?.compressedFile?.path!
+    : (thumbnailPath as string)
+
   return (
     <div className="relative w-full flex items-center justify-center">
       <div className="relative w-full px-4">
@@ -386,15 +392,8 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
         ) : (
           <div className="relative w-fit mx-auto">
             <Image
-              alt="video to compress"
-              src={
-                isProcessCompleted
-                  ? mediaFile?.type === 'video' &&
-                    mediaFile?.previewMode === 'image'
-                    ? mediaFile?.thumbnailPath!
-                    : mediaFile?.compressedFile?.path!
-                  : (thumbnailPath as string)
-              }
+              alt="image to compress"
+              src={imageToRenderSrc}
               className="object-contain rounded-3xl max-h-[65vh] border-1 border-zinc-200 dark:border-zinc-900 min-w-[100px] min-h-[100px]"
               onError={() => {
                 if (!isProcessCompleted) {
@@ -405,7 +404,7 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
                 ? { width: mediaFile?.dimensions?.width }
                 : {})}
             />
-            <div className="absolute bottom-3 right-3 z-[20] flex items-center gap-3 bg-zinc-900/50 min-h-[25px] px-2 rounded-2xl">
+            <div className="absolute bottom-3 right-3 z-[20] flex items-center gap-3 bg-zinc-900/10 dark:bg-zinc-900/40 min-h-[25px] px-2 rounded-2xl">
               {videoDuration && !isProcessCompleted ? (
                 <Button
                   size="sm"
@@ -426,12 +425,14 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
               <ImageViewer
                 // @ts-ignore
                 providerProps={
-                  mediaFile?.extension === 'svg'
+                  mediaFile?.extension === 'svg' ||
+                  (isProcessCompleted &&
+                    mediaFile?.config?.convertToExtension === 'svg')
                     ? { photoWrapClassName: 'bg-zinc-800' }
                     : {}
                 }
               >
-                <PhotoView src={thumbnailPath!}>
+                <PhotoView src={imageToRenderSrc!}>
                   <div>
                     <Tooltip content="Enlarge image">
                       <Icon name="zoom" size={18} className="cursor-pointer" />

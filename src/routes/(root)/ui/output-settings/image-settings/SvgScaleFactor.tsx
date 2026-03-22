@@ -1,15 +1,22 @@
+import { cloneDeep } from 'lodash'
 import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Slider from '@/components/Slider'
-import { appProxy, normalizeBatchMediaConfig } from '@/routes/(root)/-state'
+import { useSyncState } from '@/hooks/useSyncState'
+import {
+  appProxy,
+  imageConfigInitialState,
+  normalizeBatchMediaConfig,
+} from '@/routes/(root)/-state'
 
 type SvgScaleFactorProps = {
   mediaIndex: number
 }
 
 const SVG_SCALE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8] as const
-const DEFAULT_SCALE_FACTOR = 4
+
+const imageConfigInitialStateClone = cloneDeep(imageConfigInitialState)
 
 const SvgScaleFactor = ({ mediaIndex }: SvgScaleFactorProps) => {
   const {
@@ -26,10 +33,10 @@ const SvgScaleFactor = ({ mediaIndex }: SvgScaleFactorProps) => {
       ? media[mediaIndex]
       : null
   const { config } = image ?? {}
-  const { svgScaleFactor = DEFAULT_SCALE_FACTOR } =
+  const { svgScaleFactor } =
     config ?? commonConfigForBatchCompression.imageConfig ?? {}
 
-  const handleValueChange = useCallback(
+  const setScaleFactorGlobal = useCallback(
     (value: number) => {
       const scaleFactor = value as (typeof SVG_SCALE_OPTIONS)[number]
       if (
@@ -50,6 +57,13 @@ const SvgScaleFactor = ({ mediaIndex }: SvgScaleFactorProps) => {
     [mediaIndex],
   )
 
+  const [scaleFactor, setScaleFactor] = useSyncState<number>({
+    globalValue: svgScaleFactor ?? undefined,
+    setGlobalValue: setScaleFactorGlobal,
+    defaultValue: imageConfigInitialStateClone.svgScaleFactor ?? 4,
+    debounceMs: 500,
+  })
+
   const shouldDisableInput =
     media.length === 0 ||
     isCompressing ||
@@ -63,14 +77,14 @@ const SvgScaleFactor = ({ mediaIndex }: SvgScaleFactorProps) => {
       step={1}
       minValue={1}
       maxValue={8}
-      value={svgScaleFactor}
+      value={scaleFactor}
       marks={SVG_SCALE_OPTIONS.map((value) => ({
         value,
         label: `${value}x`,
       }))}
       onChange={(val) => {
         if (!Array.isArray(val)) {
-          handleValueChange(val)
+          setScaleFactor(val)
         }
       }}
       isDisabled={shouldDisableInput}

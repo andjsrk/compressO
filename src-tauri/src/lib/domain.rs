@@ -341,7 +341,24 @@ pub struct UpdateInfo {
     pub date: Option<String>,
 }
 
-// Image compression types
+#[derive(Debug, Clone, Copy)]
+pub enum ImageContainer {
+    Png,
+    Jpeg,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SvgConfig {
+    pub filter_speckle: Option<usize>,
+    pub color_precision: Option<i32>,
+    pub layer_difference: Option<i32>,
+    pub corner_threshold: Option<i32>,
+    pub length_threshold: Option<f64>,
+    pub splice_threshold: Option<i32>,
+    pub is_bw: Option<bool>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageCompressionProgress {
@@ -369,6 +386,7 @@ pub struct ImageCompressionConfig {
     pub is_lossless: Option<bool>,
     pub quality: u8, // 1-100
     pub strip_metadata: Option<bool>,
+    pub svg_config: Option<SvgConfig>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

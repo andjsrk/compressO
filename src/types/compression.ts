@@ -237,6 +237,16 @@ export type ImageCompressionResult = {
   fileMetadata?: FileMetadata
 }
 
+export type SvgConfig = {
+  filterSpeckle?: number | null
+  colorPrecision?: number | null
+  layerDifference?: number | null
+  cornerThreshold?: number | null
+  lengthThreshold?: number | null
+  spliceThreshold?: number | null
+  isBw?: boolean | null
+}
+
 export type ImageCompressionConfig = {
   imageId: string
   imagePath: string
@@ -245,6 +255,7 @@ export type ImageCompressionConfig = {
   quality: number
   stripMetadata: boolean
   svgScaleFactor: number | null
+  svgConfig?: SvgConfig | null
 }
 
 export type MediaItem = {

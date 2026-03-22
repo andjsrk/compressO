@@ -1,7 +1,7 @@
 use crate::domain::{
     BatchImageCompressionProgress, CustomEvents, ImageBatchCompressionResult,
     ImageBatchIndividualCompressionResult, ImageCompressionConfig, ImageCompressionProgress,
-    ImageCompressionResult,
+    ImageCompressionResult, ImageContainer, SvgConfig,
 };
 use crate::ffmpeg::FFMPEG;
 use crate::fs::get_file_metadata;
@@ -23,12 +23,6 @@ use std::process::Command;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_shell::ShellExt;
-
-#[derive(Debug, Clone, Copy)]
-pub enum ImageContainer {
-    Png,
-    Jpeg,
-}
 
 pub const EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
 
@@ -95,6 +89,7 @@ impl ImageCompressor {
         image_id: &str,
         batch_id: Option<&str>,
         strip_metadata: Option<bool>,
+        svg_config: Option<SvgConfig>,
     ) -> Result<ImageCompressionResult, String> {
         let original_path = Path::new(input_path);
         if !original_path.exists() {
@@ -212,10 +207,10 @@ impl ImageCompressor {
             match original_extension.as_str() {
                 "png" | "jpg" | "jpeg" | "webp" => {
                     if convert_to_ext.eq("svg") {
-                        let svg_result = self.convert_raster_img_to_svg(
+                        let svg_result = self.convert_raster_to_svg_img(
                             compression_output_path.to_str().unwrap(),
                             output_path.to_str().unwrap(),
-                            quality,
+                            svg_config.clone(),
                         );
 
                         // If above conversion fails, retry with png
@@ -238,10 +233,10 @@ impl ImageCompressor {
                                 .await
                             {
                                 Ok(_) => {
-                                    let retry_result = self.convert_raster_img_to_svg(
+                                    let retry_result = self.convert_raster_to_svg_img(
                                         &temp_png_path,
                                         output_path.to_str().unwrap(),
-                                        quality,
+                                        svg_config.clone(),
                                     );
 
                                     let _ = fs::remove_file(&temp_png_path);
@@ -267,7 +262,7 @@ impl ImageCompressor {
                         .await?;
                     }
                 }
-                "svg" => self.convert_svg_to_raster_image(
+                "svg" => self.convert_svg_to_raster_img(
                     compression_output_path.to_str().unwrap(),
                     image_id,
                     convert_to_ext,
@@ -340,6 +335,7 @@ impl ImageCompressor {
             let svg_scale_factor = image_config.svg_scale_factor;
             let strip_metadata = image_config.strip_metadata.unwrap_or(true);
             let is_lossless = image_config.is_lossless;
+            let svg_config = image_config.svg_config.clone();
 
             match self
                 .compress_image(
@@ -351,6 +347,7 @@ impl ImageCompressor {
                     image_id,
                     Some(batch_id),
                     Some(strip_metadata),
+                    svg_config,
                 )
                 .await
             {
@@ -716,27 +713,32 @@ impl ImageCompressor {
         Ok(())
     }
 
-    pub fn convert_raster_img_to_svg(
+    pub fn convert_raster_to_svg_img(
         &self,
         input_path: &str,
         output_path: &str,
-        quality: u8,
+        svg_config: Option<SvgConfig>,
     ) -> Result<(), String> {
-        let q = quality.clamp(1, 100) as f32;
-        let filter_speckle = ((100.0 - q) * (128.0 / 99.0)).round() as usize;
-
         // @ref: https://www.visioncortex.org/vtracer/
+        let config = svg_config.unwrap_or_default();
+
+        let preset = if config.is_bw.unwrap_or(false) {
+            vtracer::Preset::Bw
+        } else {
+            vtracer::Preset::Poster
+        };
+
         vtracer::convert_image_to_svg(
             &PathBuf::from(input_path),
             &PathBuf::from(output_path),
             vtracer::Config {
-                filter_speckle,
-                color_precision: 8,
-                layer_difference: 0,
-                corner_threshold: 180,
-                splice_threshold: 0,
-                length_threshold: 8.0,
-                ..vtracer::Config::from_preset(vtracer::Preset::Photo)
+                filter_speckle: config.filter_speckle.unwrap_or(4usize), // Filter Speckle: (0-128); higher is cleaner/smoother; @default=4
+                color_precision: config.color_precision.unwrap_or(6i32), //  Color Precision: (1-8); higher is more accurate color but can over-saturate; @default=6
+                layer_difference: config.layer_difference.unwrap_or(16i32), // Gradient Step: (0-128); higher is less layers; @default=16
+                corner_threshold: config.corner_threshold.unwrap_or(60i32), // Corner threshold: (0-180); higher is smoother; @default=60
+                length_threshold: config.length_threshold.unwrap_or(4.0f64), // Segment Length: (0-10); higher is more coarse; @default=4
+                splice_threshold: config.splice_threshold.unwrap_or(45i32), // Splice Threshold: (0-180); higher is less accurate; @default 45
+                ..vtracer::Config::from_preset(preset)
             },
         )
         .map_err(|err| err.to_string())?;
@@ -744,7 +746,7 @@ impl ImageCompressor {
         Ok(())
     }
 
-    pub fn convert_svg_to_raster_image(
+    pub fn convert_svg_to_raster_img(
         &self,
         input_path: &str,
         image_id: &str,

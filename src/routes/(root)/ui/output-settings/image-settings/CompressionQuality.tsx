@@ -1,15 +1,23 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import React, { useCallback } from 'react'
-import { snapshot, useSnapshot } from 'valtio'
+import { cloneDeep } from 'lodash'
+import { useCallback } from 'react'
+import { useSnapshot } from 'valtio'
 
 import Slider from '@/components/Slider'
 import Switch from '@/components/Switch'
+import { useSyncState } from '@/hooks/useSyncState'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy, normalizeBatchMediaConfig } from '../../../-state'
+import {
+  appProxy,
+  imageConfigInitialState,
+  normalizeBatchMediaConfig,
+} from '../../../-state'
 
 type CompressionQualityProps = {
   mediaIndex: number
 }
+
+const imageConfigInitialStateCloned = cloneDeep(imageConfigInitialState)
 
 function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
   const {
@@ -29,68 +37,32 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
   const { quality: compressionQuality, isLossless } =
     config ?? commonConfigForBatchCompression.imageConfig ?? {}
 
-  const [quality, setQuality] = React.useState<number>(
-    compressionQuality ?? 100,
-  )
-  const debounceRef = React.useRef<NodeJS.Timeout>()
-  const qualityRef = React.useRef<number>(quality)
-
-  React.useEffect(() => {
-    qualityRef.current = quality
-  }, [quality])
-
-  React.useEffect(() => {
-    const appSnapshot = snapshot(appProxy)
-    if (
-      appSnapshot.state.media.length &&
-      quality !==
-        (mediaIndex >= 0 && appSnapshot.state.media[mediaIndex].type === 'image'
-          ? appSnapshot.state.media[mediaIndex]?.config?.quality
-          : appSnapshot.state.media.length > 1
-            ? appSnapshot.state.commonConfigForBatchCompression?.imageConfig
-                ?.quality
-            : undefined)
-    ) {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
-      debounceRef.current = setTimeout(() => {
-        if (
-          mediaIndex >= 0 &&
-          appProxy.state.media[mediaIndex].type === 'image' &&
-          appProxy.state.media[mediaIndex]?.config
-        ) {
-          appProxy.state.media[mediaIndex].config.quality = quality
-          appProxy.state.media[mediaIndex].isConfigDirty = true
-        } else {
-          if (appProxy.state.media.length > 1) {
-            appProxy.state.commonConfigForBatchCompression.imageConfig.quality =
-              quality
-            normalizeBatchMediaConfig()
-          }
-        }
-      }, 500)
-    }
-    return () => {
-      clearTimeout(debounceRef.current)
-    }
-  }, [quality, mediaIndex])
-
-  React.useEffect(() => {
-    if (compressionQuality !== qualityRef.current) {
+  const setQualityGlobal = useCallback(
+    (value: number) => {
       if (
-        typeof compressionQuality === 'number' &&
-        !Number.isNaN(+compressionQuality)
-      )
-        setQuality(compressionQuality)
-    }
-  }, [compressionQuality])
+        mediaIndex >= 0 &&
+        appProxy.state.media[mediaIndex].type === 'image' &&
+        appProxy.state.media[mediaIndex]?.config
+      ) {
+        appProxy.state.media[mediaIndex].config.quality = value
+        appProxy.state.media[mediaIndex].isConfigDirty = true
+      } else {
+        if (appProxy.state.media.length > 1) {
+          appProxy.state.commonConfigForBatchCompression.imageConfig.quality =
+            value
+          normalizeBatchMediaConfig()
+        }
+      }
+    },
+    [mediaIndex],
+  )
 
-  const handleQualityChange = React.useCallback((value: number | number[]) => {
-    if (typeof value === 'number') {
-      setQuality(value)
-    }
-  }, [])
+  const [quality, setQuality] = useSyncState<number>({
+    globalValue: compressionQuality ?? undefined,
+    setGlobalValue: setQualityGlobal,
+    defaultValue: imageConfigInitialStateCloned.quality,
+    debounceMs: 500,
+  })
 
   const handleSwitchToggle = useCallback(() => {
     if (
@@ -168,7 +140,11 @@ function CompressionQuality({ mediaIndex }: CompressionQualityProps) {
                 <p className="text-primary text-xs">{quality}%</p>
               )}
               value={quality}
-              onChange={handleQualityChange}
+              onChange={(value) => {
+                if (typeof value === 'number') {
+                  setQuality(value)
+                }
+              }}
               isDisabled={isLossless || shouldDisableInput}
             />
           </motion.div>

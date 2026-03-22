@@ -6,6 +6,7 @@ import { ImageExtension as ImageExtensionType } from '@/types/compression'
 import CompressionQuality from './CompressionQuality'
 import ImageExtension from './ImageExtension'
 import ImageMetadata from './ImageMetadata'
+import SvgConfig from './SvgConfig'
 import SvgScaleFactor from './SvgScaleFactor'
 
 type ImageSettingsProps = {
@@ -22,7 +23,7 @@ function ImageSettings({ mediaIndex }: ImageSettingsProps) {
       : null
   const { config } = image ?? {}
   const { convertToExtension } =
-    config ?? commonConfigForBatchCompression.videoConfig ?? {}
+    config ?? commonConfigForBatchCompression.imageConfig ?? {}
 
   return (
     <div className="space-y-3 my-3">
@@ -47,6 +48,13 @@ function ImageSettings({ mediaIndex }: ImageSettingsProps) {
         <ImageMetadata mediaIndex={mediaIndex} />
         <Divider className="my-3" />
       </div>
+
+      {convertToExtension === 'svg' ? (
+        <div>
+          <SvgConfig mediaIndex={mediaIndex} />
+          <Divider className="my-3" />
+        </div>
+      ) : null}
 
       <div className="!mt-8">
         <ImageExtension mediaIndex={mediaIndex} />

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
@@ -13,11 +13,11 @@ import { Ripple } from '@/ui/Patterns/Ripple'
 import { slideUpTransition, zoomInTransition } from '@/utils/animation'
 import { formatDuration } from '@/utils/string'
 import { cn } from '@/utils/tailwind'
-import { appProxy } from '../-state'
 import MediaOutputCompareSlider from './MediaOutputCompareSlider'
 import MediaThumbnail from './MediaThumbnail'
 import styles from './styles.module.css'
 import VideoInfo from './VideoInfo'
+import { appProxy } from '../-state'
 
 type PreviewSingleMediaProps = {
   mediaIndex: number
@@ -56,6 +56,12 @@ function PreviewSingleMedia({ mediaIndex }: PreviewSingleMediaProps) {
         : 0,
     [compressedFile?.sizeInBytes, sizeInBytes],
   )
+
+  useEffect(() => {
+    if (isCompressing) {
+      setCompareOutput(true)
+    }
+  }, [isCompressing])
 
   const singleFileNameDisplay =
     (isProcessCompleted

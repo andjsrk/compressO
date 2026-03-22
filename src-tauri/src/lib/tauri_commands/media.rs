@@ -153,6 +153,7 @@ pub async fn compress_media_batch(
             let quality = image_config.quality;
             let strip_metadata = image_config.strip_metadata;
             let is_lossless = image_config.is_lossless;
+            let svg_config = image_config.svg_config.clone();
 
             let mut image_compressor = ImageCompressor::new(&app)
                 .map_err(|e| format!("Failed to create image compressor instance: {}", e))?;
@@ -167,6 +168,7 @@ pub async fn compress_media_batch(
                     image_id,
                     Some(batch_id.as_str()),
                     strip_metadata,
+                    svg_config,
                 )
                 .await
             {

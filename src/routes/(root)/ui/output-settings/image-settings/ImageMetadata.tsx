@@ -23,7 +23,7 @@ const ImageMetadata = ({ mediaIndex }: ImageMetadataProps) => {
       ? media[mediaIndex]
       : null
   const { config } = image ?? {}
-  const { stripMetadata } =
+  const { stripMetadata, convertToExtension } =
     config ?? commonConfigForBatchCompression.imageConfig ?? {}
 
   const handleValueChange = useCallback(
@@ -54,7 +54,8 @@ const ImageMetadata = ({ mediaIndex }: ImageMetadataProps) => {
     isProcessCompleted ||
     (['gif', 'svg'] as ImageExtension[]).includes(
       image?.extension as ImageExtension,
-    )
+    ) ||
+    convertToExtension === 'svg'
 
   return (
     <Switch

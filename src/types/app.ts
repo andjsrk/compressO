@@ -9,6 +9,7 @@ import {
   compressionPresets,
   extensions,
   SubtitleStream,
+  SvgConfig,
   VideoStream,
   VideoTransforms,
   VideoTransformsHistory,
@@ -131,9 +132,11 @@ export type Video = {
 export type ImageConfig = {
   convertToExtension: keyof typeof extensions.image | '-'
   isLossless: boolean
-  quality?: number | null
+  quality: number
   stripMetadata: boolean
   svgScaleFactor?: number
+  svgConfig?: SvgConfig
+  shouldEnableAdvancedSvgSetting?: boolean
 }
 
 export type Image = {

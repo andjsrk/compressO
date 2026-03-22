@@ -53,7 +53,7 @@ function MediaOutputCompareSlider({
       options = merge({}, renderImageDefaultOptions, options ?? {})
       return (
         <div
-          className="relative"
+          className="relative bg-white1 dark:bg-black1"
           id={`image-comparison-${options?.isOriginal ? 0 : 1}`}
           key={`image-comparison-${options?.isOriginal ? 0 : 1}`}
         >
@@ -75,7 +75,15 @@ function MediaOutputCompareSlider({
                   : 'right-4 z-[100]',
               )}
             >
-              <ImageViewer>
+              <ImageViewer
+                // @ts-ignore
+                providerProps={
+                  mediaFile?.isProcessCompleted &&
+                  mediaFile?.config?.convertToExtension === 'svg'
+                    ? { photoWrapClassName: 'bg-zinc-800' }
+                    : {}
+                }
+              >
                 <PhotoView src={src!}>
                   <div>
                     <Tooltip
@@ -91,7 +99,11 @@ function MediaOutputCompareSlider({
         </div>
       )
     },
-    [mediaFile?.dimensions?.width],
+    [
+      mediaFile?.dimensions?.width,
+      mediaFile?.isProcessCompleted,
+      mediaFile?.config?.convertToExtension,
+    ],
   )
 
   const renderVideo = useCallback(
@@ -143,7 +155,7 @@ function MediaOutputCompareSlider({
           SVG file too large. Might affect the comparison renderer performance.
         </p>
       ) : null}
-      <div className="border-1 border-zinc-200 dark:border-zinc-900 rounded-3xl">
+      <div className="border-1 border-zinc-200 dark:border-zinc-900 rounded-3xl overflow-hidden">
         <CompareSlider
           onlyHandleDraggable
           itemOne={

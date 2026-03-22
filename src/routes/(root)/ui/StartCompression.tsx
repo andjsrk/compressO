@@ -193,6 +193,7 @@ function StartCompression() {
                     : (v.config.quality ?? 100),
                   stripMetadata: v.config.stripMetadata,
                   svgScaleFactor: v.config.svgScaleFactor ?? null,
+                  svgConfig: v.config.svgConfig ?? null,
                 } satisfies ImageCompressionConfig)
               : undefined,
         })),

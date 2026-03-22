@@ -390,7 +390,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
                 isDisabled={shouldDisableInput || isDisabledForWebm}
                 className="mt-2"
               >
-                Add Subtitle Track
+                Add Subtitle
                 <Icon name="fileExplorer" size={14} />
               </Button>
 

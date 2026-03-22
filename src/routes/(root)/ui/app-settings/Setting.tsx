@@ -159,26 +159,21 @@ function AppSetting() {
                 <div>
                   <Icon name="trash" />
                 </div>
-                <AnimatePresence initial={false}>
+                <AnimatePresence initial={false} mode="wait">
                   {confirmClearCache ? (
-                    <motion.p
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{
-                        width: 'auto',
-                        opacity: 1,
-                        transition: {
-                          duration: 0.3,
-                          bounce: 0.2,
-                          type: 'spring',
-                        },
+                    <motion.span
+                      layout="position"
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{
+                        duration: 0.25,
+                        ease: [0.4, 0, 0.2, 1],
                       }}
-                      exit={{
-                        width: 0,
-                        opacity: 0,
-                      }}
+                      className="inline-block whitespace-nowrap"
                     >
                       Clear Now
-                    </motion.p>
+                    </motion.span>
                   ) : null}
                 </AnimatePresence>
               </Button>

@@ -55,12 +55,24 @@ export const videoConfigInitialState: VideoConfig = {
   },
 }
 
+export const svgSettingInitialState = {
+  filterSpeckle: 4,
+  colorPrecision: 6,
+  layerDifference: 16,
+  cornerThreshold: 60,
+  lengthThreshold: 4,
+  spliceThreshold: 45,
+  isBw: false,
+}
+
 export const imageConfigInitialState: ImageConfig = {
   convertToExtension: '-',
   isLossless: false,
   quality: 50,
   stripMetadata: true,
-  svgScaleFactor: 2,
+  svgScaleFactor: 4,
+  shouldEnableAdvancedSvgSetting: false,
+  svgConfig: svgSettingInitialState,
 }
 
 const appInitialState: App = {
