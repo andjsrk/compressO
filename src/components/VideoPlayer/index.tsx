@@ -482,7 +482,6 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             style={{
               width: '100%',
               height: '75px',
-              borderRadius: '10px',
               margin: '10px 0',
             }}
             getActionRender={(action, row) => {

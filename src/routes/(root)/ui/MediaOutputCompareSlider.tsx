@@ -44,7 +44,7 @@ function MediaOutputCompareSlider({
   const {
     state: { media },
   } = useSnapshot(appProxy)
-  const mediaFile = media.length === 1 ? media[0] : null
+  const mediaFile = media[mediaIndex]
 
   const id = useId()
 
@@ -133,7 +133,7 @@ function MediaOutputCompareSlider({
   )
 
   return (
-    <div id={id} className="rounded-3xl overflow-hidden">
+    <div id={id} className="rounded-3xl overflow-hidden px-4">
       {mediaFile?.type === 'image' &&
       ((mediaFile?.compressedFile?.extension === 'svg' &&
         (mediaFile?.compressedFile?.sizeInBytes ?? 0) >=
@@ -145,7 +145,7 @@ function MediaOutputCompareSlider({
           SVG file too large. Might affect the comparison renderer performance.
         </p>
       ) : null}
-      <div className="border-1 border-zinc-200 dark:border-zinc-900 rounded-3xl overflow-hidden">
+      <div className="border-1 border-zinc-200 dark:border-zinc-900 overflow-hidden">
         <CompareSlider
           onlyHandleDraggable
           itemOne={

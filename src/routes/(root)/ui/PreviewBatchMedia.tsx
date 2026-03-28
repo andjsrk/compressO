@@ -126,8 +126,6 @@ function PreviewBatchMedia() {
       displayTotalVideos,
       displayTotalImages,
       displayTotalSize,
-      isPositiveCompression:
-        (compressedSize ?? Number.MAX_SAFE_INTEGER) < (totalSize ?? 0),
     }
   }, [media, isBatchCompressionCancelled, activeTab])
 
@@ -188,7 +186,13 @@ function PreviewBatchMedia() {
       0,
     )
 
-    const sizeSaved = originalSizeOfCompressedOnly - outputSize
+    const compressedSize = completedMedia.reduce((sum: number, m) => {
+      const cs = m.compressedFile?.sizeInBytes
+      const os = m.sizeInBytes ?? 0
+      return sum + (cs != null && cs < os ? cs : 0)
+    }, 0)
+
+    const sizeSaved = originalSizeOfCompressedOnly - compressedSize
     const percentageSaved =
       originalSizeOfCompressedOnly > 0
         ? (sizeSaved / originalSizeOfCompressedOnly) * 100
@@ -199,10 +203,6 @@ function PreviewBatchMedia() {
         sum + (m?.compressionProgress ?? 0) / filteredMedia.length,
       0,
     )
-
-    const isPositiveCompression =
-      completedMedia.length > 0 &&
-      (outputSize ?? Number.MAX_SAFE_INTEGER) < originalSizeOfCompressedOnly
 
     if (activeTab === 'videos') {
       return {
@@ -216,7 +216,6 @@ function PreviewBatchMedia() {
         sizeSaved,
         percentageSaved,
         totalProgress,
-        isPositiveCompression,
       }
     } else if (activeTab === 'images') {
       return {
@@ -230,7 +229,6 @@ function PreviewBatchMedia() {
         sizeSaved,
         percentageSaved,
         totalProgress,
-        isPositiveCompression,
       }
     }
     return {
@@ -244,7 +242,6 @@ function PreviewBatchMedia() {
       sizeSaved,
       percentageSaved,
       totalProgress,
-      isPositiveCompression,
     }
   }, [activeTab, compressionStats, filteredMedia])
 
@@ -326,54 +323,80 @@ function PreviewBatchMedia() {
                         {!isCompressing &&
                         mediaFile?.isProcessCompleted &&
                         mediaFile?.compressedFile?.isSuccessful ? (
-                          <Tooltip
-                            content="Copy output to clipboard"
-                            aria-label="Copy output to clipboard"
-                          >
-                            <Button
-                              size="sm"
-                              isIconOnly
-                              onPress={() =>
-                                handleCopyToClipboard(
-                                  (mediaFile?.compressedFile?.savedPath ??
-                                    mediaFile?.compressedFile
-                                      ?.pathRaw) as string,
-                                )
-                              }
-                              className="rounded-full text-white"
+                          <>
+                            <Tooltip
+                              content="Copy output to clipboard"
+                              aria-label="Copy output to clipboard"
                             >
-                              <Icon
-                                name="copy"
-                                size={28}
-                                className="text-green-400"
-                              />
-                            </Button>
-                          </Tooltip>
+                              <Button
+                                size="sm"
+                                isIconOnly
+                                onPress={() =>
+                                  handleCopyToClipboard(
+                                    (mediaFile?.compressedFile?.savedPath ??
+                                      mediaFile?.compressedFile
+                                        ?.pathRaw) as string,
+                                  )
+                                }
+                                className="rounded-full text-white"
+                              >
+                                <Icon
+                                  name="copy"
+                                  size={28}
+                                  className="text-green-400"
+                                />
+                              </Button>
+                            </Tooltip>
+                            <Tooltip
+                              content="Compare output"
+                              aria-label="Compare output"
+                            >
+                              <Button
+                                size="sm"
+                                isIconOnly
+                                onPress={() => {
+                                  appProxy.state.selectedMediaIndexForCustomization =
+                                    originalIndex
+                                }}
+                                className={cn(
+                                  'rounded-full text-white hover:bg-zinc-700 transition-colors',
+                                )}
+                              >
+                                <Icon
+                                  name="compare"
+                                  size={20}
+                                  className="text-green-400"
+                                />
+                              </Button>
+                            </Tooltip>
+                          </>
                         ) : null}
                         {mediaFile.isProcessCompleted &&
                         mediaFile?.compressedFile?.isSaved &&
                         mediaFile?.compressedFile?.savedPath ? (
-                          <Tooltip
-                            content="Show in File Explorer"
-                            aria-label="Show in File Explorer"
-                          >
-                            <Button
-                              size="sm"
-                              isIconOnly
-                              onPress={() =>
-                                handleOpenInFileManager(
-                                  mediaFile.compressedFile!.savedPath!,
-                                )
-                              }
-                              className="p-2 rounded-full text-white"
+                          <div>
+                            <Tooltip
+                              content="Show in File Explorer"
+                              aria-label="Show in File Explorer"
                             >
-                              <Icon
-                                name="fileExplorer"
-                                size={20}
-                                className="text-green-400"
-                              />
-                            </Button>
-                          </Tooltip>
+                              <Button
+                                size="sm"
+                                isIconOnly
+                                onPress={() =>
+                                  handleOpenInFileManager(
+                                    mediaFile.compressedFile!.savedPath!,
+                                  )
+                                }
+                                className="p-2 rounded-full text-white"
+                              >
+                                <Icon
+                                  name="fileExplorer"
+                                  size={20}
+                                  className="text-green-400"
+                                />
+                              </Button>
+                            </Tooltip>
+                          </div>
                         ) : null}
                       </div>
                       {!isCompressing &&
@@ -387,22 +410,6 @@ function PreviewBatchMedia() {
                             className="absolute top-2 right-2 z-10 p-2 rounded-full bg-zinc-800/80 text-white hover:bg-zinc-700 transition-colors"
                           >
                             <Icon name="cross" size={18} />
-                          </Button>
-                          <Button
-                            size="sm"
-                            isIconOnly
-                            onPress={() => {
-                              appProxy.state.selectedMediaIndexForCustomization =
-                                originalIndex
-                            }}
-                            className={cn(
-                              'absolute bottom-2 left-2 z-10 rounded-full text-white hover:bg-zinc-700 transition-colors',
-                              mediaFile.isConfigDirty
-                                ? 'bg-primary'
-                                : 'bg-zinc-800/80',
-                            )}
-                          >
-                            <Icon name="pencil" size={20} />
                           </Button>
                         </>
                       ) : null}
@@ -422,10 +429,7 @@ function PreviewBatchMedia() {
                               aria-label="Processing"
                             />
                           ) : (
-                            <Spinner
-                              size="lg"
-                              className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
-                            />
+                            <Spinner className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2" />
                           )}
                           <div className="absolute inset-0 bg-black/70 z-10 rounded-lg"></div>
                         </>
@@ -484,7 +488,7 @@ function PreviewBatchMedia() {
                           <>
                             <div className="text-[11px] xl:text-[12px] xxl:text-[12px] 3xl:text-[12.5px]">
                               <p className=" text-gray-600 dark:text-gray-400 mb-1">
-                                Size
+                                Input Size
                               </p>
                               <span className="block font-black">
                                 {mediaFile.size}
@@ -612,7 +616,7 @@ function PreviewBatchMedia() {
               </div>
               <Divider orientation="vertical" className="h-8" />
               <div>
-                <p className=" text-gray-600 dark:text-gray-400">Size</p>
+                <p className=" text-gray-600 dark:text-gray-400">Input Size</p>
                 <p
                   className={cn(
                     'font-black text-lg',
@@ -629,14 +633,7 @@ function PreviewBatchMedia() {
                     <p className=" text-gray-600 dark:text-gray-400">
                       Output Size
                     </p>
-                    <p
-                      className={cn(
-                        'font-black text-lg',
-                        getDisplayStats.isPositiveCompression
-                          ? 'text-green-600 dark:text-green-400'
-                          : '',
-                      )}
-                    >
+                    <p className={cn('font-black text-lg')}>
                       {formatBytes(getDisplayStats.outputSize ?? 0) || '-'}
                     </p>
                   </div>
@@ -646,13 +643,16 @@ function PreviewBatchMedia() {
                     <p
                       className={cn(
                         'font-black text-lg',
-                        getDisplayStats.isPositiveCompression
+                        (getDisplayStats.sizeSaved ?? 0) > 0
                           ? 'text-green-600 dark:text-green-400'
                           : '',
                       )}
                     >
                       {formatBytes(getDisplayStats.sizeSaved ?? 0) || '-'} (
-                      {(getDisplayStats.percentageSaved ?? 0).toFixed(2)}%)
+                      {(getDisplayStats.percentageSaved ?? 0).toFixed(
+                        (getDisplayStats.sizeSaved ?? 0) > 0 ? 2 : 0,
+                      )}
+                      %)
                     </p>
                   </div>
                 </>
