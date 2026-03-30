@@ -1,13 +1,9 @@
 use crate::{
-    domain::{
-        AudioConfig, BatchCompressionResult, CompressionResult, SubtitlesConfig, TrimSegment, VideoCompressionConfig, VideoInfo,
-        VideoMetadataConfig, VideoThumbnail,
-    },
+    domain::{AudioConfig, CompressionResult, VideoInfo, VideoThumbnail},
     ffmpeg::{self},
     ffprobe,
     fs::delete_stale_files,
 };
-use serde_json::Value;
 use std::path::Path;
 
 #[tauri::command]
@@ -19,14 +15,8 @@ pub async fn compress_video(
     video_id: &str,
     audio_config: AudioConfig,
     quality: u16,
-    dimensions: Option<(u32, u32)>,
     fps: Option<&str>,
     video_codec: Option<&str>,
-    transforms_history: Option<Vec<Value>>,
-    metadata_config: Option<VideoMetadataConfig>,
-    custom_thumbnail_path: Option<&str>,
-    trim_segments: Option<Vec<TrimSegment>>,
-    subtitles_config: Option<SubtitlesConfig>,
 ) -> Result<CompressionResult, String> {
     let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
     if let Ok(files) =
@@ -43,17 +33,10 @@ pub async fn compress_video(
             convert_to_extension,
             preset_name,
             video_id,
-            None,
             &audio_config,
             quality,
-            dimensions,
             fps,
             video_codec,
-            transforms_history.as_ref(),
-            metadata_config.as_ref(),
-            custom_thumbnail_path,
-            trim_segments.as_ref(),
-            subtitles_config.as_ref(),
         )
         .await
     {
@@ -76,28 +59,6 @@ pub async fn generate_video_thumbnail(
 pub async fn get_video_info(app: tauri::AppHandle, video_path: &str) -> Result<VideoInfo, String> {
     let mut ffprobe = ffprobe::FFPROBE::new(&app)?;
     ffprobe.get_video_info(video_path).await
-}
-
-#[tauri::command]
-pub async fn compress_videos_batch(
-    app: tauri::AppHandle,
-    batch_id: &str,
-    videos: Vec<VideoCompressionConfig>,
-) -> Result<BatchCompressionResult, String> {
-    let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
-    if let Ok(files) =
-        delete_stale_files(ffmpeg.get_asset_dir().as_str(), 24 * 60 * 60 * 1000).await
-    {
-        log::debug!(
-            "[main] Stale files deleted. Number of deleted files = {}",
-            files.len()
-        )
-    };
-    ffmpeg
-        .compress_videos_batch(batch_id, videos)
-        .await
-        .map(|result| Ok(result))
-        .unwrap_or_else(|err| Err(err))
 }
 
 #[tauri::command]
