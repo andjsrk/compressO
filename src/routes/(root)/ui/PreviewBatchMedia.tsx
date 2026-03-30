@@ -320,10 +320,11 @@ function PreviewBatchMedia() {
                         </div>
                       )}
                       <div className="absolute top-2 left-2 z-10 flex gap-2 items-center">
-                        {!isCompressing &&
+                        {!mediaFile?.isCompressing &&
                         mediaFile?.isProcessCompleted &&
                         mediaFile?.compressedFile?.isSuccessful ? (
                           <>
+                            {/* Can copy to output immediately after it's process is completed. no need to wait for other processes */}
                             <Tooltip
                               content="Copy output to clipboard"
                               aria-label="Copy output to clipboard"
@@ -347,28 +348,30 @@ function PreviewBatchMedia() {
                                 />
                               </Button>
                             </Tooltip>
-                            <Tooltip
-                              content="Compare output"
-                              aria-label="Compare output"
-                            >
-                              <Button
-                                size="sm"
-                                isIconOnly
-                                onPress={() => {
-                                  appProxy.state.selectedMediaIndexForCustomization =
-                                    originalIndex
-                                }}
-                                className={cn(
-                                  'rounded-full text-white hover:bg-zinc-700 transition-colors',
-                                )}
+                            {!isCompressing ? (
+                              <Tooltip
+                                content="Compare output"
+                                aria-label="Compare output"
                               >
-                                <Icon
-                                  name="compare"
-                                  size={20}
-                                  className="text-green-400"
-                                />
-                              </Button>
-                            </Tooltip>
+                                <Button
+                                  size="sm"
+                                  isIconOnly
+                                  onPress={() => {
+                                    appProxy.state.selectedMediaIndexForCustomization =
+                                      originalIndex
+                                  }}
+                                  className={cn(
+                                    'rounded-full text-white hover:bg-zinc-700 transition-colors',
+                                  )}
+                                >
+                                  <Icon
+                                    name="compare"
+                                    size={20}
+                                    className="text-green-400"
+                                  />
+                                </Button>
+                              </Tooltip>
+                            ) : null}
                           </>
                         ) : null}
                         {mediaFile.isProcessCompleted &&
@@ -591,7 +594,9 @@ function PreviewBatchMedia() {
                 </div>
                 <Divider orientation="vertical" className="h-8" />
                 <div>
-                  <p className=" text-gray-600 dark:text-gray-400">Saved</p>
+                  <p className=" text-gray-600 dark:text-gray-400">
+                    Size Saved
+                  </p>
                   <p className="font-black text-lg text-green-600 dark:text-green-400">
                     {formatBytes(getDisplayStats.sizeSaved ?? 0) || '...'}
                     {getDisplayStats.percentageSaved
@@ -655,7 +660,9 @@ function PreviewBatchMedia() {
                   </div>
                   <Divider orientation="vertical" className="h-8" />
                   <div>
-                    <p className=" text-gray-600 dark:text-gray-400">Saved</p>
+                    <p className=" text-gray-600 dark:text-gray-400">
+                      Size Saved
+                    </p>
                     <p
                       className={cn(
                         'font-black text-lg',

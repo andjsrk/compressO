@@ -186,7 +186,7 @@ function Root() {
             // create a static image thumbnail for large svg due to performance reason
             if (
               path.endsWith('.svg') &&
-              fileMetadata?.size >= 1 * 1024 * 1024
+              fileMetadata?.size >= 0.5 * 1024 * 1024
             ) {
               try {
                 const outputPngPath = await convertSvgToPng(

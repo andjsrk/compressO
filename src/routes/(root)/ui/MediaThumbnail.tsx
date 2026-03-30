@@ -44,7 +44,7 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
   if (mediaIndex < 0) return
 
   const {
-    state: { media },
+    state: { media, isSaved },
   } = useSnapshot(appProxy)
   const mediaFile = media.length > 0 ? media[mediaIndex] : null
   const {
@@ -289,9 +289,13 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
     mediaFile?.type === 'video' ? videoThumbnailPath : mediaPath
 
   const imageToRenderSrc = isProcessCompleted
-    ? mediaFile?.type === 'video' && mediaFile?.previewMode === 'image'
+    ? mediaFile?.type === 'video' &&
+      mediaFile?.previewMode === 'image' &&
+      mediaFile?.compressedFile?.extension !== 'gif'
       ? mediaFile?.thumbnailPath!
-      : mediaFile?.compressedFile?.path!
+      : isSaved
+        ? core.convertFileSrc(mediaFile?.compressedFile?.savedPath!)
+        : mediaFile?.compressedFile?.path!
     : thumbnailPath!
 
   return (

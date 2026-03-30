@@ -69,7 +69,7 @@ export const imageConfigInitialState: ImageConfig = {
   isLossless: false,
   quality: 50,
   shouldStripMetadata: true,
-  svgScaleFactor: 4,
+  svgScaleFactor: 1,
   shouldEnableAdvancedSvgSetting: false,
   svgConfig: svgSettingInitialState,
 }

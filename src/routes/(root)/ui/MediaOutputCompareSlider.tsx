@@ -1,3 +1,4 @@
+import { core } from '@tauri-apps/api'
 import merge from 'lodash/merge'
 import { memo, useCallback, useId } from 'react'
 import { ReactCompareSliderHandle } from 'react-compare-slider'
@@ -42,7 +43,7 @@ function MediaOutputCompareSlider({
   if (mediaIndex < 0) return
 
   const {
-    state: { media },
+    state: { media, isSaved },
   } = useSnapshot(appProxy)
   const mediaFile = media[mediaIndex]
 
@@ -132,6 +133,10 @@ function MediaOutputCompareSlider({
     [mediaFile?.dimensions?.width, mediaFile?.dimensions?.height],
   )
 
+  const outputPath = isSaved
+    ? core.convertFileSrc(mediaFile?.compressedFile?.savedPath!)
+    : mediaFile?.compressedFile?.path
+
   return (
     <div id={id} className="rounded-3xl overflow-hidden px-4">
       {mediaFile?.type === 'image' &&
@@ -156,19 +161,13 @@ function MediaOutputCompareSlider({
           itemTwo={
             mediaFile?.type === 'video'
               ? mediaFile?.compressedFile?.extension === 'gif'
-                ? renderImage(
-                    `${mediaFile?.compressedFile?.path!}?id={${id}}`,
-                    {
-                      isOriginal: false,
-                    },
-                  )
-                : renderVideo(
-                    `${mediaFile?.compressedFile?.path!}?id={${id}}`,
-                    {
-                      isOriginal: false,
-                    },
-                  )
-              : renderImage(`${mediaFile?.compressedFile?.path!}?id={${id}}`, {
+                ? renderImage(`${outputPath!}?id={${id}}`, {
+                    isOriginal: false,
+                  })
+                : renderVideo(`${outputPath!}?id={${id}}`, {
+                    isOriginal: false,
+                  })
+              : renderImage(`${outputPath!}?id={${id}}`, {
                   isOriginal: false,
                 })
           }
